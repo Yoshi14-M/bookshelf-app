@@ -19,6 +19,12 @@ Route::get('/', [BookController::class, 'index']);
 Route::get('/books', [BookController::class, 'index'])->name('books.index');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book')->name('books.show');
 
+// 書籍の登録・編集・削除（要ログイン。編集・削除は登録者のみ）
+Route::resource('books', BookController::class)
+    ->except(['index', 'show'])
+    ->middleware('auth')
+    ->where(['book' => '[0-9]+']);
+
 /*
 |--------------------------------------------------------------------------
 | 暫定ルート
@@ -27,7 +33,7 @@ Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book'
 | Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
 | 一覧・詳細を含む全画面が RouteNotFoundException になるため、名前・メソッド・
 | URI・認証だけを確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   書籍の登録・編集・削除 → #4 ／ ジャンル → #5 ／ レビュー → #6 ／ お気に入り・いいね → #7 ／ ランキング → #8
+|   ジャンル → #5 ／ レビュー → #6 ／ お気に入り・いいね → #7 ／ ランキング → #8
 |
 */
 $comingSoon = fn () => abort(501, 'この機能は準備中です。');
@@ -35,12 +41,6 @@ $comingSoon = fn () => abort(501, 'この機能は準備中です。');
 Route::get('/ranking', $comingSoon)->name('ranking.index');
 
 Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::get('/books/create', $comingSoon)->name('books.create');
-    Route::post('/books', $comingSoon)->name('books.store');
-    Route::get('/books/{book}/edit', $comingSoon)->name('books.edit');
-    Route::put('/books/{book}', $comingSoon)->name('books.update');
-    Route::delete('/books/{book}', $comingSoon)->name('books.destroy');
-
     Route::get('/genres', $comingSoon)->name('genres.index');
     Route::get('/genres/create', $comingSoon)->name('genres.create');
     Route::post('/genres', $comingSoon)->name('genres.store');
