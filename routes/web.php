@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\GenreController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,6 +26,11 @@ Route::resource('books', BookController::class)
     ->middleware('auth')
     ->where(['book' => '[0-9]+']);
 
+// ジャンル管理（要ログイン。共有マスタのため登録済みなら誰でも操作可）
+Route::resource('genres', GenreController::class)
+    ->middleware('auth')
+    ->where(['genre' => '[0-9]+']);
+
 /*
 |--------------------------------------------------------------------------
 | 暫定ルート
@@ -33,7 +39,7 @@ Route::resource('books', BookController::class)
 | Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
 | 一覧・詳細を含む全画面が RouteNotFoundException になるため、名前・メソッド・
 | URI・認証だけを確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   ジャンル → #5 ／ レビュー → #6 ／ お気に入り・いいね → #7 ／ ランキング → #8
+|   レビュー → #6 ／ お気に入り・いいね → #7 ／ ランキング → #8
 |
 */
 $comingSoon = fn () => abort(501, 'この機能は準備中です。');
@@ -41,14 +47,6 @@ $comingSoon = fn () => abort(501, 'この機能は準備中です。');
 Route::get('/ranking', $comingSoon)->name('ranking.index');
 
 Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::get('/genres', $comingSoon)->name('genres.index');
-    Route::get('/genres/create', $comingSoon)->name('genres.create');
-    Route::post('/genres', $comingSoon)->name('genres.store');
-    Route::get('/genres/{genre}', $comingSoon)->name('genres.show');
-    Route::get('/genres/{genre}/edit', $comingSoon)->name('genres.edit');
-    Route::put('/genres/{genre}', $comingSoon)->name('genres.update');
-    Route::delete('/genres/{genre}', $comingSoon)->name('genres.destroy');
-
     Route::post('/books/{book}/reviews', $comingSoon)->name('reviews.store');
     Route::get('/reviews/{review}/edit', $comingSoon)->name('reviews.edit');
     Route::put('/reviews/{review}', $comingSoon)->name('reviews.update');
