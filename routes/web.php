@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,6 +14,47 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
+// 書籍一覧・詳細（ゲストも閲覧可）。`/` と `/books` は同じ一覧を表示する（URL は維持）
+Route::get('/', [BookController::class, 'index']);
+Route::get('/books', [BookController::class, 'index'])->name('books.index');
+Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book')->name('books.show');
+
+/*
+|--------------------------------------------------------------------------
+| 暫定ルート
+|--------------------------------------------------------------------------
+|
+| Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
+| 一覧・詳細を含む全画面が RouteNotFoundException になるため、名前・メソッド・
+| URI・認証だけを確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
+|   書籍の登録・編集・削除 → #4 ／ ジャンル → #5 ／ レビュー → #6 ／ お気に入り・いいね → #7 ／ ランキング → #8
+|
+*/
+$comingSoon = fn () => abort(501, 'この機能は準備中です。');
+
+Route::get('/ranking', $comingSoon)->name('ranking.index');
+
+Route::middleware('auth')->group(function () use ($comingSoon) {
+    Route::get('/books/create', $comingSoon)->name('books.create');
+    Route::post('/books', $comingSoon)->name('books.store');
+    Route::get('/books/{book}/edit', $comingSoon)->name('books.edit');
+    Route::put('/books/{book}', $comingSoon)->name('books.update');
+    Route::delete('/books/{book}', $comingSoon)->name('books.destroy');
+
+    Route::get('/genres', $comingSoon)->name('genres.index');
+    Route::get('/genres/create', $comingSoon)->name('genres.create');
+    Route::post('/genres', $comingSoon)->name('genres.store');
+    Route::get('/genres/{genre}', $comingSoon)->name('genres.show');
+    Route::get('/genres/{genre}/edit', $comingSoon)->name('genres.edit');
+    Route::put('/genres/{genre}', $comingSoon)->name('genres.update');
+    Route::delete('/genres/{genre}', $comingSoon)->name('genres.destroy');
+
+    Route::post('/books/{book}/reviews', $comingSoon)->name('reviews.store');
+    Route::get('/reviews/{review}/edit', $comingSoon)->name('reviews.edit');
+    Route::put('/reviews/{review}', $comingSoon)->name('reviews.update');
+    Route::delete('/reviews/{review}', $comingSoon)->name('reviews.destroy');
+    Route::post('/reviews/{review}/like', $comingSoon)->name('reviews.like');
+
+    Route::get('/favorites', $comingSoon)->name('favorites.index');
+    Route::post('/books/{book}/favorites', $comingSoon)->name('favorites.toggle');
 });
