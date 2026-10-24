@@ -3,6 +3,7 @@
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\RankingController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewLikeController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [BookController::class, 'index']);
 Route::get('/books', [BookController::class, 'index'])->name('books.index');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book')->name('books.show');
+
+// レビュー平均評価ランキング（ゲストも閲覧可）
+Route::get('/ranking', [RankingController::class, 'index'])->name('ranking.index');
 
 // 書籍の登録・編集・削除（要ログイン。編集・削除は登録者のみ）
 Route::resource('books', BookController::class)
@@ -46,18 +50,3 @@ Route::middleware('auth')->group(function () {
     Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites.index');
     Route::post('/books/{book}/favorites', [FavoriteController::class, 'toggle'])->whereNumber('book')->name('favorites.toggle');
 });
-
-/*
-|--------------------------------------------------------------------------
-| 暫定ルート
-|--------------------------------------------------------------------------
-|
-| Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
-| 一覧・詳細を含む全画面が RouteNotFoundException になるため、名前・メソッド・
-| URI・認証だけを確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   ランキング → #8
-|
-*/
-$comingSoon = fn () => abort(501, 'この機能は準備中です。');
-
-Route::get('/ranking', $comingSoon)->name('ranking.index');

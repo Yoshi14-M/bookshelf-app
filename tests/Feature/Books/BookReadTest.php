@@ -175,12 +175,6 @@ class BookReadTest extends TestCase
     }
 
     /** @test */
-    public function 未実装のランキング画面は準備中として応答する(): void
-    {
-        $this->get('/ranking')->assertStatus(501);
-    }
-
-    /** @test */
     public function 未実装の認証必須画面にゲストがアクセスするとログイン画面へ遷移する(): void
     {
         $this->get('/books/create')->assertRedirect(route('login'));
