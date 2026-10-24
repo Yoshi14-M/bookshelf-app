@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\ReviewLikeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,6 +40,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('reviews', ReviewController::class)
         ->only(['edit', 'update', 'destroy'])
         ->where(['review' => '[0-9]+']);
+
+    // いいね・お気に入りのトグル（自分のレビュー・自分の書籍にも可なので Policy なし）
+    Route::post('/reviews/{review}/like', [ReviewLikeController::class, 'toggle'])->whereNumber('review')->name('reviews.like');
+    Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites.index');
+    Route::post('/books/{book}/favorites', [FavoriteController::class, 'toggle'])->whereNumber('book')->name('favorites.toggle');
 });
 
 /*
@@ -48,16 +55,9 @@ Route::middleware('auth')->group(function () {
 | Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
 | 一覧・詳細を含む全画面が RouteNotFoundException になるため、名前・メソッド・
 | URI・認証だけを確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   お気に入り・いいね → #7 ／ ランキング → #8
+|   ランキング → #8
 |
 */
 $comingSoon = fn () => abort(501, 'この機能は準備中です。');
 
 Route::get('/ranking', $comingSoon)->name('ranking.index');
-
-Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::post('/reviews/{review}/like', $comingSoon)->name('reviews.like');
-
-    Route::get('/favorites', $comingSoon)->name('favorites.index');
-    Route::post('/books/{book}/favorites', $comingSoon)->name('favorites.toggle');
-});

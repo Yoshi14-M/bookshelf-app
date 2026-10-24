@@ -175,10 +175,9 @@ class BookReadTest extends TestCase
     }
 
     /** @test */
-    public function 未実装画面へのリンク先は準備中として応答する(): void
+    public function 未実装のランキング画面は準備中として応答する(): void
     {
         $this->get('/ranking')->assertStatus(501);
-        $this->actingAs(User::factory()->create())->get('/favorites')->assertStatus(501);
     }
 
     /** @test */
