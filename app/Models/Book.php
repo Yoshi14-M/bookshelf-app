@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -40,5 +41,41 @@ class Book extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    /**
+     * タイトルまたは著者に対するキーワードの部分一致（`%` `_` はワイルドカードとして扱わない）。
+     *
+     * @param  Builder<Book>  $query
+     */
+    public function scopeSearch(Builder $query, ?string $keyword): void
+    {
+        $keyword = trim((string) $keyword);
+
+        if ($keyword === '') {
+            return;
+        }
+
+        // DB ごとに LIKE の既定のエスケープ文字が異なるため、ESCAPE を明示して統一する
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword).'%';
+
+        $query->where(function (Builder $query) use ($pattern) {
+            $query->whereRaw("title like ? escape '!'", [$pattern])
+                ->orWhereRaw("author like ? escape '!'", [$pattern]);
+        });
+    }
+
+    /**
+     * 指定したジャンルに紐付く書籍に絞り込む。
+     *
+     * @param  Builder<Book>  $query
+     */
+    public function scopeInGenre(Builder $query, ?int $genreId): void
+    {
+        if ($genreId === null) {
+            return;
+        }
+
+        $query->whereHas('genres', fn (Builder $query) => $query->where('genres.id', $genreId));
     }
 }
