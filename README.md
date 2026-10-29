@@ -1,66 +1,245 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# BookShelf 書籍レビューアプリ
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 概要
 
-## About Laravel
+ユーザーが書籍を登録・閲覧し、レビューの投稿、お気に入り登録、レビューへのいいねを行える書籍レビューアプリです。書籍はジャンルで分類され、レビューの平均評価によるランキングを確認できます。画面（Blade + セッション認証）に加えて、外部アプリケーション向けの公開 API（JSON）も提供します。
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 使用技術
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP 8.5（Sail ランタイム。`composer.json` の要求は ^8.1）
+- Laravel 10.x
+- MySQL 8.4
+- Laravel Sail（Docker）
+- Laravel Fortify（認証）
+- Laravel Sanctum（導入済み。公開 API の認証は応用フェーズで使用）
+- Blade / Vite 5 / Tailwind CSS 3 / Alpine.js 3
+- PHPUnit（テストは SQLite インメモリ）/ Laravel Pint
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 環境構築手順
 
-## Learning Laravel
+1. リポジトリを取得する
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```bash
+git clone git@github.com:Yoshi14-M/bookshelf-app.git
+cd bookshelf-app
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+2. `.env.example` を `.env` にコピーする
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+cp .env.example .env
+```
 
-## Laravel Sponsors
+3. 依存パッケージをインストールする（clone 直後は `vendor/` が無く sail を実行できないため、Docker で composer を実行する）
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -v "$(pwd):/var/www/html" -w /var/www/html \
+  -e COMPOSER_CACHE_DIR=/tmp/composer_cache \
+  laravelsail/php85-composer:latest \
+  composer install --ignore-platform-reqs
+```
 
-### Premium Partners
+4. Sail を起動し、アプリケーションキーを生成する
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+```
 
-## Contributing
+5. マイグレーション・シーディングを実行する
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+./vendor/bin/sail artisan migrate --seed
+```
 
-## Code of Conduct
+6. フロントエンドをビルドする（開発中は `npm run dev` を起動したままにする）
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev
+```
 
-## Security Vulnerabilities
+7. アクセスする
+    - アプリ: http://localhost
+    - phpMyAdmin: http://localhost:8080
+    - Vite 開発サーバー: http://localhost:5173
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+ポートは `.env` の `APP_PORT` / `FORWARD_PHPMYADMIN_PORT` / `VITE_PORT` で変更できます。
 
-## License
+## ログイン情報（シーディングで自動作成）
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+ユーザー 5 名・ジャンル 10 件・書籍 11 冊・レビュー・お気に入り・いいねが投入されます。パスワードは全員 `password` です。
+
+| 名前     | メールアドレス        | パスワード |
+| -------- | --------------------- | ---------- |
+| 山田太郎 | yamada@example.com    | password   |
+| 鈴木花子 | suzuki@example.com    | password   |
+| 田中一郎 | tanaka@example.com    | password   |
+| 佐藤美咲 | sato@example.com      | password   |
+| 高橋健太 | takahashi@example.com | password   |
+
+- ログイン: http://localhost/login
+- 会員登録: http://localhost/register
+- 書籍は山田太郎の登録として投入されます。
+
+## 主な機能
+
+### ゲスト（ログイン不要）
+
+- 書籍一覧（`/`、`/books`。新着順・10 件/ページ）
+- 書籍詳細（`/books/{book}`。ジャンル・レビュー・平均評価を表示）
+- レビュー平均評価ランキング（`/ranking`。上位 10 件。レビューのない書籍は対象外、同点は書籍 ID 昇順）
+
+### ログインユーザー
+
+- 会員登録・ログイン・ログアウト
+- 書籍の登録（`/books/create`）。編集・削除は登録者のみ（`/books/{book}/edit`）
+- ジャンルの一覧・詳細・登録・編集・削除（`/genres`。書籍が紐付いているジャンルは削除不可）
+- レビューの投稿（書籍詳細から）。編集・削除は投稿者のみ（`/reviews/{review}/edit`）
+- レビューへのいいね（トグル。`POST /reviews/{review}/like`）
+- お気に入り登録（トグル。`POST /books/{book}/favorites`）とお気に入り一覧（`/favorites`）
+
+### 公開 API（`/api/v1/books`）
+
+ベース URL は `http://localhost/api/v1` です。基本フェーズでは認証なしで、書き込み系への Sanctum 認証は応用フェーズで追加します。`Accept` ヘッダの有無にかかわらず常に JSON で応答します。
+
+| メソッド    | URI                    | 概要                                                     | 認証 | 成功時 |
+| ----------- | ---------------------- | -------------------------------------------------------- | ---- | ------ |
+| GET         | `/api/v1/books`        | 書籍一覧（ジャンル・平均評価・レビュー件数つき、新着順） | 不要 | 200    |
+| GET         | `/api/v1/books/{book}` | 書籍詳細（ジャンルとレビューつき）                       | 不要 | 200    |
+| POST        | `/api/v1/books`        | 書籍登録                                                 | 不要 | 201    |
+| PUT / PATCH | `/api/v1/books/{book}` | 書籍更新                                                 | 不要 | 200    |
+| DELETE      | `/api/v1/books/{book}` | 書籍削除                                                 | 不要 | 204    |
+
+- **一覧のクエリパラメータ**: `keyword`（タイトル・著者の部分一致）、`genre_id`、`page`、`per_page`（1〜100、既定 20）
+- **登録・更新のリクエスト項目**: `user_id`（登録者。検証のみでレスポンスには含めず、更新でも登録者は変更しない）、`title`、`author`、`isbn`（13 桁・一意）、`published_date`、`description`、`image_url`、`genres[]`（1 つ以上）
+- **エラー**: 存在しない書籍は 404、バリデーションエラーは 422（日本語メッセージ）。レスポンスの `average_rating` は小数第 1 位（レビューなしは `null`）
+
+```bash
+curl -s "http://localhost/api/v1/books?keyword=PHP&per_page=5"
+curl -s -X POST http://localhost/api/v1/books \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id":1,"title":"サンプル","author":"著者","isbn":"9784000000001","published_date":"2024-01-01","genres":[1]}'
+```
+
+## テストの実行
+
+```bash
+./vendor/bin/sail artisan test
+```
+
+- 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
+- テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
+- 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
+- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.4%）
+
+## コード整形（Laravel Pint）
+
+```bash
+./vendor/bin/sail bin pint          # 整形
+./vendor/bin/sail bin pint --test   # チェックのみ
+```
+
+## ER図
+
+```mermaid
+erDiagram
+    users ||--o{ books : "登録する"
+    users ||--o{ reviews : "投稿する"
+    users ||--o{ favorites : "お気に入り"
+    books ||--o{ favorites : ""
+    users ||--o{ review_likes : "いいね"
+    reviews ||--o{ review_likes : ""
+    books ||--o{ reviews : ""
+    books ||--o{ book_genre : ""
+    genres ||--o{ book_genre : ""
+
+    users {
+        bigint id PK
+        string name
+        string email UK
+        timestamp email_verified_at
+        string password
+        text two_factor_secret
+        text two_factor_recovery_codes
+        timestamp two_factor_confirmed_at
+        string remember_token
+        timestamps created_at_updated_at
+    }
+    genres {
+        bigint id PK
+        string name UK "50文字"
+        timestamps created_at_updated_at
+    }
+    books {
+        bigint id PK
+        bigint user_id FK "登録者"
+        string title
+        string author
+        char isbn UK "13桁"
+        date published_date
+        text description "nullable"
+        string image_url "nullable"
+        timestamps created_at_updated_at
+    }
+    book_genre {
+        bigint book_id PK, FK
+        bigint genre_id PK, FK
+    }
+    reviews {
+        bigint id PK
+        bigint user_id FK
+        bigint book_id FK
+        tinyint rating "1-5"
+        text comment "nullable"
+        timestamps created_at_updated_at
+    }
+    favorites {
+        bigint user_id PK, FK
+        bigint book_id PK, FK
+        timestamp created_at
+    }
+    review_likes {
+        bigint user_id PK, FK
+        bigint review_id PK, FK
+        timestamp created_at
+    }
+```
+
+- Book ⇄ Genre は多対多（中間テーブル `book_genre`）。ジャンルは書籍が紐付いている間は削除できません（`restrictOnDelete`）。
+- お気に入り（User ⇄ Book）、いいね（User ⇄ Review）は多対多の中間テーブルで、複合主キーにより重複登録を防ぎます。
+- 書籍・ユーザー・レビューを削除すると、紐付くレビュー・お気に入り・いいねは外部キーの `CASCADE` で削除されます。
+- 上記以外に Laravel 標準の `password_reset_tokens` / `failed_jobs` / `personal_access_tokens` があります。
+
+### テーブル概要
+
+| テーブル       | 説明                                                                        |
+| -------------- | --------------------------------------------------------------------------- |
+| `users`        | ユーザー（会員登録・ログイン用）                                            |
+| `genres`       | ジャンル（共有マスタ。名前は一意）                                          |
+| `books`        | 書籍。`user_id` は登録者、`isbn` は 13 桁で一意                             |
+| `book_genre`   | 書籍とジャンルの中間テーブル（1 冊に複数ジャンル可）                        |
+| `reviews`      | 書籍へのレビュー（評価 1〜5・コメント）。同一ユーザーが同じ書籍に複数投稿可 |
+| `favorites`    | ユーザーの書籍お気に入り（中間テーブル）                                    |
+| `review_likes` | ユーザーのレビューへのいいね（中間テーブル）                                |
+
+## ディレクトリ構成の補足
+
+- `app/Http/Controllers/BookController.php` : 書籍の一覧・詳細・登録・編集・削除
+- `app/Http/Controllers/GenreController.php` / `ReviewController.php` : ジャンル管理、レビューの投稿・編集・削除
+- `app/Http/Controllers/FavoriteController.php` / `ReviewLikeController.php` : お気に入り一覧・トグル、いいねのトグル
+- `app/Http/Controllers/RankingController.php` : 平均評価ランキング
+- `app/Http/Controllers/Api/V1/BookController.php` : 公開 API（`/api/v1/books`）
+- `app/Http/Requests/` : バリデーション（FormRequest。日本語の `messages()` を実装）。書籍の共通ルールは `Concerns/HasBookRules.php`、API 用は `Api/V1/`
+- `app/Http/Resources/` : API レスポンスの整形（`BookResource` / `GenreResource` / `ReviewResource`）
+- `app/Policies/` : 認可（`BookPolicy` / `ReviewPolicy` は本人のみ、`GenrePolicy` はログイン済みなら可）
+- `app/Models/Book.php` : `search`（タイトル・著者の部分一致）と `inGenre`（ジャンル絞り込み）のスコープ
+- `app/Actions/Fortify/CreateNewUser.php` : 会員登録処理 / `app/Providers/FortifyServiceProvider.php` : ログイン・登録画面の紐付け
+- `config/bookshelf.php` : 1 ページの表示件数・ランキング件数・API の既定件数
+- `lang/ja/`, `lang/ja.json` : 日本語のバリデーション・認証メッセージ（手動配置）
+
+## 作成者
+
+松井 義朗（GitHub: [Yoshi14-M](https://github.com/Yoshi14-M)）

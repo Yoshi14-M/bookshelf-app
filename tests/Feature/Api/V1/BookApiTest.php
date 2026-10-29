@@ -134,13 +134,20 @@ class BookApiTest extends TestCase
     /** @test */
     public function キーワードの記号はワイルドカードとして扱われない(): void
     {
+        // LIKE の既定のエスケープ文字（バックスラッシュ）は MySQL のみ。SQLite（テスト既定）には無い
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('MySQL の LIKE エスケープ仕様に依存するため、MySQL 接続でのみ実行する。');
+        }
+
         Book::factory()->create(['title' => '100%の力']);
         Book::factory()->create(['title' => '普通の本']);
         Book::factory()->create(['title' => 'a_b']);
         Book::factory()->create(['title' => 'axb']);
+        Book::factory()->create(['title' => 'C:\\temp']);
 
         $this->assertSame(1, $this->getJson('/api/v1/books?keyword='.urlencode('%'))->json('meta.total'));
         $this->assertSame(1, $this->getJson('/api/v1/books?keyword='.urlencode('a_b'))->json('meta.total'));
+        $this->assertSame(1, $this->getJson('/api/v1/books?keyword='.urlencode('\\'))->json('meta.total'));
     }
 
     /** @test */

@@ -106,4 +106,20 @@ class BookTest extends TestCase
 
         Book::factory()->create(['isbn' => '9784101010014']);
     }
+
+    /** @test */
+    public function キーワード検索は記号をバックスラッシュでエスケープしてタイトルと著者に部分一致させる(): void
+    {
+        $query = Book::search('50%_\\');
+
+        $this->assertMatchesRegularExpression('/title\W+ like \? or \W*author\W+ like \?/', $query->toSql());
+        $this->assertSame(['%50\\%\\_\\\\%', '%50\\%\\_\\\\%'], $query->getBindings());
+    }
+
+    /** @test */
+    public function 空白のみのキーワードでは絞り込まれない(): void
+    {
+        $this->assertStringNotContainsString('like', Book::search('  ')->toSql());
+        $this->assertStringNotContainsString('like', Book::search(null)->toSql());
+    }
 }

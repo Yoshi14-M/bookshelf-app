@@ -56,12 +56,12 @@ class Book extends Model
             return;
         }
 
-        // DB ごとに LIKE の既定のエスケープ文字が異なるため、ESCAPE を明示して統一する
-        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword).'%';
+        // MySQL の LIKE の既定のエスケープ文字（バックスラッシュ）で `\` `%` `_` を無効化する
+        $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $keyword).'%';
 
         $query->where(function (Builder $query) use ($pattern) {
-            $query->whereRaw("title like ? escape '!'", [$pattern])
-                ->orWhereRaw("author like ? escape '!'", [$pattern]);
+            $query->where('title', 'like', $pattern)
+                ->orWhere('author', 'like', $pattern);
         });
     }
 
