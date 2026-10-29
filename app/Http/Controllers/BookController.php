@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BookSort;
+use App\Http\Requests\IndexBookRequest;
 use App\Http\Requests\StoreBookRequest;
 use App\Http\Requests\UpdateBookRequest;
 use App\Models\Book;
@@ -12,17 +14,21 @@ use Illuminate\Http\RedirectResponse;
 class BookController extends Controller
 {
     /**
-     * 書籍一覧（新着順）。
+     * 書籍一覧（キーワード・ジャンル絞り込み・並び替え。既定は新着順）。検索条件はページ遷移でも引き継ぐ。
      */
-    public function index(): View
+    public function index(IndexBookRequest $request): View
     {
         $books = Book::with('genres')
             ->withAvg('reviews', 'rating')
-            ->latest()
-            ->latest('id')
-            ->paginate(config('bookshelf.per_page'));
+            ->withCount('reviews')
+            ->search($request->validated('keyword'))
+            ->inGenre($request->validated('genre'))
+            ->sortBy(BookSort::fromInput($request->validated('sort')))
+            ->paginate(config('bookshelf.per_page'))
+            ->withQueryString();
+        $genres = Genre::orderBy('id')->get();
 
-        return view('books.index', compact('books'));
+        return view('books.index', compact('books', 'genres'));
     }
 
     /**

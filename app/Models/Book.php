@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BookSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,8 +15,6 @@ class Book extends Model
     use HasFactory;
 
     /**
-     * Basic Blade は published_date をそのまま出力するため date cast は付けない（応用で追加する）。
-     *
      * @var array<int, string>
      */
     protected $fillable = [
@@ -26,6 +25,15 @@ class Book extends Model
         'published_date',
         'description',
         'image_url',
+    ];
+
+    /**
+     * 出版日は未入力を許容する。DATE カラムに合わせて `Y-m-d` で保存・シリアライズする。
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'published_date' => 'date:Y-m-d',
     ];
 
     public function user(): BelongsTo
@@ -63,6 +71,25 @@ class Book extends Model
             $query->where('title', 'like', $pattern)
                 ->orWhere('author', 'like', $pattern);
         });
+    }
+
+    /**
+     * 並び順を指定する。同順位は新着順（登録日時 → id）、`Oldest` のみ古い順で安定させる。
+     *
+     * `Rating` は集計列（`reviews_avg_rating` / `reviews_count`）を使うため、呼び出し側で
+     * `withAvg('reviews', 'rating')` と `withCount('reviews')` を済ませておくこと。
+     * レビューなしの書籍（平均が NULL）は降順で最後になる。
+     *
+     * @param  Builder<Book>  $query
+     */
+    public function scopeSortBy(Builder $query, BookSort $sort): void
+    {
+        match ($sort) {
+            BookSort::Latest => $query->latest()->latest('id'),
+            BookSort::Oldest => $query->oldest()->oldest('id'),
+            BookSort::Title => $query->orderBy('title')->latest('id'),
+            BookSort::Rating => $query->orderByDesc('reviews_avg_rating')->orderByDesc('reviews_count')->latest()->latest('id'),
+        };
     }
 
     /**

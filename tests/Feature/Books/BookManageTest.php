@@ -88,7 +88,7 @@ class BookManageTest extends TestCase
         $response->assertRedirect(route('books.show', $book))
             ->assertSessionHas('success', '書籍を登録しました。');
         $this->assertSame($user->id, $book->user_id);
-        $this->assertSame('2012-06-23', $book->published_date);
+        $this->assertSame('2012-06-23', $book->published_date->format('Y-m-d'));
         $this->assertEqualsCanonicalizing($genres->pluck('id')->all(), $book->genres->pluck('id')->all());
     }
 
@@ -102,6 +102,38 @@ class BookManageTest extends TestCase
         $book = Book::firstWhere('isbn', '9784873115658');
         $this->assertNull($book->description);
         $this->assertNull($book->image_url);
+    }
+
+    /** @test */
+    public function 出版日が未入力でも書籍を登録でき詳細には未登録と表示される(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->post(route('books.store'), $this->validInput(['published_date' => '']))
+            ->assertSessionHasNoErrors();
+
+        $book = Book::firstWhere('isbn', '9784873115658');
+        $this->assertNull($book->published_date);
+        $this->get(route('books.show', $book))->assertOk()->assertSee('出版日:', false)->assertSee('未登録');
+    }
+
+    /** @test */
+    public function 出版日を空にして更新できる(): void
+    {
+        $user = User::factory()->create();
+        $book = Book::factory()->for($user)->create(['published_date' => '2012-06-23']);
+        $book->genres()->attach(Genre::factory()->create());
+
+        $this->actingAs($user)
+            ->get(route('books.edit', $book))
+            ->assertOk()
+            ->assertSee('value="2012-06-23"', false);
+
+        $this->actingAs($user)
+            ->put(route('books.update', $book), $this->validInput(['isbn' => $book->isbn, 'published_date' => '']))
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($book->fresh()->published_date);
+        $this->actingAs($user)->get(route('books.edit', $book))->assertOk();
     }
 
     /** @test */
@@ -155,7 +187,6 @@ class BookManageTest extends TestCase
             'ISBNが12桁' => [['isbn' => '978487311565'], 'isbn', 'ISBNは13桁の数字で入力してください。'],
             'ISBNが14桁' => [['isbn' => '97848731156581'], 'isbn', 'ISBNは13桁の数字で入力してください。'],
             'ISBNに数字以外を含む' => [['isbn' => '978-4873115658'], 'isbn', 'ISBNは13桁の数字で入力してください。'],
-            '出版日未入力' => [['published_date' => ''], 'published_date', '出版日は必須です。'],
             '出版日が日付でない' => [['published_date' => '2012-13-45'], 'published_date', '出版日は正しい日付で入力してください。'],
             '画像URLがURL形式でない' => [['image_url' => 'image.jpg'], 'image_url', '画像URLは正しいURL形式で入力してください。'],
             '画像URLが256文字' => [['image_url' => 'https://example.com/'.str_repeat('a', 237)], 'image_url', '画像URLは255文字以内で入力してください。'],

@@ -38,9 +38,9 @@ class BookReadTest extends TestCase
     }
 
     /** @test */
-    public function 書籍がない場合は登録されていない旨が表示される(): void
+    public function 書籍がない場合は見つからない旨が表示される(): void
     {
-        $this->get('/books')->assertOk()->assertSee('書籍が登録されていません。');
+        $this->get('/books')->assertOk()->assertSee('書籍が見つかりませんでした。');
     }
 
     /** @test */

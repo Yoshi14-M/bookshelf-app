@@ -382,12 +382,33 @@ class BookApiTest extends TestCase
     }
 
     /** @test */
+    public function 出版日なしでも登録でき出版日はnullで返る(): void
+    {
+        $input = $this->validInput();
+        unset($input['published_date']);
+
+        $this->postJson('/api/v1/books', $input)
+            ->assertCreated()
+            ->assertJsonPath('data.published_date', null);
+        $this->assertNull(Book::firstWhere('isbn', '9784873115658')->published_date);
+    }
+
+    /** @test */
+    public function 出版日は年月日の形式の文字列で返る(): void
+    {
+        $book = Book::factory()->create(['published_date' => '2012-06-23']);
+
+        $this->getJson('/api/v1/books')->assertJsonPath('data.0.published_date', '2012-06-23');
+        $this->getJson('/api/v1/books/'.$book->id)->assertJsonPath('data.published_date', '2012-06-23');
+    }
+
+    /** @test */
     public function 登録の422にはメッセージとエラー一覧が日本語で含まれる(): void
     {
         $this->postJson('/api/v1/books', ['genres' => []])
             ->assertStatus(422)
-            ->assertJsonStructure(['message', 'errors' => ['user_id', 'title', 'author', 'isbn', 'published_date', 'genres']])
-            ->assertJsonPath('message', '登録者IDは必須です。 （ほか 5 件のエラー）');
+            ->assertJsonStructure(['message', 'errors' => ['user_id', 'title', 'author', 'isbn', 'genres']])
+            ->assertJsonPath('message', '登録者IDは必須です。 （ほか 4 件のエラー）');
     }
 
     /** @test */

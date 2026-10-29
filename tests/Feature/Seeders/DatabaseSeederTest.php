@@ -73,7 +73,7 @@ class DatabaseSeederTest extends TestCase
         $book = Book::where('isbn', '9784422100524')->with('genres')->first();
 
         $this->assertSame('人を動かす', $book->title);
-        $this->assertSame('1936-10-01', $book->published_date);
+        $this->assertSame('1936-10-01', $book->published_date->format('Y-m-d'));
         $this->assertEqualsCanonicalizing(['ビジネス', '自己啓発'], $book->genres->pluck('name')->all());
         $this->assertNotEmpty($book->description);
         $this->assertSame('https://placehold.co/200x300/e2e8f0/475569?text=2', $book->image_url);
