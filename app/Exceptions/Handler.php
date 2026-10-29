@@ -2,7 +2,11 @@
 
 namespace App\Exceptions;
 
+use App\Models\Book;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -25,6 +29,20 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // 公開 API の 404 は日本語の固定メッセージで返す
+        $this->renderable(function (NotFoundHttpException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $previous = $e->getPrevious();
+            $message = $previous instanceof ModelNotFoundException && $previous->getModel() === Book::class
+                ? '書籍が見つかりません。'
+                : 'リソースが見つかりません。';
+
+            return response()->json(['message' => $message], 404);
         });
     }
 }
