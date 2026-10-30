@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class BookTest extends TestCase
@@ -70,11 +71,22 @@ class BookTest extends TestCase
     }
 
     /** @test */
-    public function 出版日はcastされず日付文字列のまま取得できる(): void
+    public function 出版日は日付として取得でき保存と出力は年月日の形式になる(): void
     {
         $book = Book::factory()->create(['published_date' => '2012-06-23']);
 
-        $this->assertSame('2012-06-23', $book->fresh()->published_date);
+        $this->assertInstanceOf(Carbon::class, $book->fresh()->published_date);
+        $this->assertSame('2012-06-23', $book->fresh()->published_date->format('Y-m-d'));
+        $this->assertSame('2012-06-23', $book->fresh()->toArray()['published_date']);
+        $this->assertDatabaseHas('books', ['id' => $book->id, 'published_date' => '2012-06-23']);
+    }
+
+    /** @test */
+    public function 出版日はnullで保存できる(): void
+    {
+        $book = Book::factory()->create(['published_date' => null]);
+
+        $this->assertNull($book->fresh()->published_date);
     }
 
     /** @test */

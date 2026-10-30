@@ -173,9 +173,9 @@ class FavoriteTest extends TestCase
         };
 
         $attach(2);
-        $few = $this->countQueries(fn () => $this->actingAs($user)->get(route('favorites.index'))->assertOk());
+        $few = $this->countQueries(fn () => $this->actingAs($user->fresh())->get(route('favorites.index'))->assertOk());
         $attach(7);
-        $many = $this->countQueries(fn () => $this->actingAs($user)->get(route('favorites.index'))->assertOk());
+        $many = $this->countQueries(fn () => $this->actingAs($user->fresh())->get(route('favorites.index'))->assertOk());
 
         $this->assertSame($few, $many);
     }

@@ -88,7 +88,7 @@ docker run --rm \
 
 ### ゲスト（ログイン不要）
 
-- 書籍一覧（`/`、`/books`。新着順・10 件/ページ）
+- 書籍一覧（`/`、`/books`。10 件/ページ）。キーワード（タイトル・著者の部分一致）・ジャンルの絞り込み・並び替え（新しい順 / 古い順 / 評価順 / タイトル順）を併用でき、ページ遷移でも条件を維持
 - 書籍詳細（`/books/{book}`。ジャンル・レビュー・平均評価を表示）
 - レビュー平均評価ランキング（`/ranking`。上位 10 件。レビューのない書籍は対象外、同点は書籍 ID 昇順）
 
@@ -133,7 +133,7 @@ curl -s -X POST http://localhost/api/v1/books \
 - 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
 - テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
 - 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
-- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.4%）
+- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.5%）
 
 ## コード整形（Laravel Pint）
 
@@ -179,7 +179,7 @@ erDiagram
         string title
         string author
         char isbn UK "13桁"
-        date published_date
+        date published_date "nullable"
         text description "nullable"
         string image_url "nullable"
         timestamps created_at_updated_at
@@ -219,7 +219,7 @@ erDiagram
 | -------------- | --------------------------------------------------------------------------- |
 | `users`        | ユーザー（会員登録・ログイン用）                                            |
 | `genres`       | ジャンル（共有マスタ。名前は一意）                                          |
-| `books`        | 書籍。`user_id` は登録者、`isbn` は 13 桁で一意                             |
+| `books`        | 書籍。`user_id` は登録者、`isbn` は 13 桁で一意。`published_date` は任意      |
 | `book_genre`   | 書籍とジャンルの中間テーブル（1 冊に複数ジャンル可）                        |
 | `reviews`      | 書籍へのレビュー（評価 1〜5・コメント）。同一ユーザーが同じ書籍に複数投稿可 |
 | `favorites`    | ユーザーの書籍お気に入り（中間テーブル）                                    |
@@ -235,7 +235,8 @@ erDiagram
 - `app/Http/Requests/` : バリデーション（FormRequest。日本語の `messages()` を実装）。書籍の共通ルールは `Concerns/HasBookRules.php`、API 用は `Api/V1/`
 - `app/Http/Resources/` : API レスポンスの整形（`BookResource` / `GenreResource` / `ReviewResource`）
 - `app/Policies/` : 認可（`BookPolicy` / `ReviewPolicy` は本人のみ、`GenrePolicy` はログイン済みなら可）
-- `app/Models/Book.php` : `search`（タイトル・著者の部分一致）と `inGenre`（ジャンル絞り込み）のスコープ
+- `app/Models/Book.php` : `search`（タイトル・著者の部分一致）・`inGenre`（ジャンル絞り込み）・`sortBy`（並び替え）のスコープ
+- `app/Enums/BookSort.php` : 一覧の並び順（`latest` / `oldest` / `title` / `rating`）
 - `app/Actions/Fortify/CreateNewUser.php` : 会員登録処理 / `app/Providers/FortifyServiceProvider.php` : ログイン・登録画面の紐付け
 - `config/bookshelf.php` : 1 ページの表示件数・ランキング件数・API の既定件数
 - `lang/ja/`, `lang/ja.json` : 日本語のバリデーション・認証メッセージ（手動配置）
