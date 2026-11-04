@@ -58,17 +58,6 @@ class ProvisionalRouteTest extends TestCase
     }
 
     /** @test */
-    public function 書籍番号検索の暫定ルートは準備中のエラーを501で返す(): void
-    {
-        $this->get('/books/isbn/9784101010014')->assertRedirect(route('login'));
-
-        $this->actingAs(User::factory()->create())
-            ->getJson('/books/isbn/9784101010014')
-            ->assertStatus(501)
-            ->assertJson(['error' => 'この機能は準備中です。']);
-    }
-
-    /** @test */
     public function 暫定ルートの名前が画面から参照できる(): void
     {
         foreach (['reports.index', 'reading-plans.index', 'reading-plans.create', 'notifications.index'] as $name) {

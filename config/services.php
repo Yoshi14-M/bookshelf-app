@@ -25,6 +25,11 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
+    'google_books' => [
+        'url' => env('GOOGLE_BOOKS_API_URL', 'https://www.googleapis.com/books/v1/volumes'),
+        'key' => env('GOOGLE_BOOKS_API_KEY'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
