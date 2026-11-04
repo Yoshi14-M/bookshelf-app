@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\BookIsbnController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\RankingController;
@@ -26,6 +27,9 @@ Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book'
 
 // レビュー平均評価ランキング（ゲストも閲覧可）
 Route::get('/ranking', [RankingController::class, 'index'])->name('ranking.index');
+
+// ISBN から書籍情報を取得（認証不要。登録・編集画面の JS が直接呼ぶ JSON エンドポイント）
+Route::get('/books/isbn/{isbn}', [BookIsbnController::class, 'show'])->name('books.isbn');
 
 // 書籍の登録・編集・削除（要ログイン。編集・削除は登録者のみ）
 Route::resource('books', BookController::class)
@@ -59,14 +63,12 @@ Route::middleware('auth')->group(function () {
 | Advanced Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
 | ナビを含む全画面が RouteNotFoundException になるため、名前・メソッド・URI・認証だけを
 | 確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   ISBN 検索 → #12 ／ マイレポート → #13 ／ 読書計画 → #14 ／ 通知 → #15
+|   マイレポート → #13 ／ 読書計画 → #14 ／ 通知 → #15
 |
 */
 $comingSoon = fn () => abort(501, 'この機能は準備中です。');
 
 Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::get('/books/isbn/{isbn}', fn () => response()->json(['error' => 'この機能は準備中です。'], 501))->name('books.isbn');
-
     Route::get('/reports', $comingSoon)->name('reports.index');
 
     Route::get('/reading-plans', $comingSoon)->name('reading-plans.index');

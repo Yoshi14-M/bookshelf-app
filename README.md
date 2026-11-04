@@ -68,6 +68,25 @@ docker run --rm \
 
 ポートは `.env` の `APP_PORT` / `FORWARD_PHPMYADMIN_PORT` / `VITE_PORT` で変更できます。
 
+### ISBN 検索（Google Books API）の設定
+
+書籍の登録・編集画面の「ISBN から書籍情報を自動入力」は Google Books API を呼び出します。キーなしの匿名アクセスは利用上限（日次クォータ）が 0 で 429 になるため、[Google Cloud](https://console.cloud.google.com/) で「Books API」を有効にして API キーを発行し、`.env` に設定してください（未設定・失敗時は画面にエラーを表示します）。
+
+```
+GOOGLE_BOOKS_API_KEY=発行したキー
+GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1/volumes   # 省略可
+```
+
+`GET /books/isbn/{isbn}` のレスポンス（認証不要。失敗時は `{"error": "…"}`）:
+
+| 状況                                 | ステータス | `error` のメッセージ                                                                      |
+| ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------- |
+| 取得成功                             | 200        | （`title` / `author` / `description` / `image_url` / `published_date` を返す）            |
+| ISBN が 13 桁の数字でない            | 400        | ISBNは13桁で入力してください。                                                            |
+| 書籍が見つからない                   | 404        | 書籍が見つかりませんでした。                                                              |
+| Google Books API のクォータ超過      | 429        | Google Books API のクォータを超過しました。.env に GOOGLE_BOOKS_API_KEY を設定してください。 |
+| その他の API 通信エラー              | 500        | API通信エラーが発生しました。                                                             |
+
 ## ログイン情報（シーディングで自動作成）
 
 ユーザー 5 名・ジャンル 10 件・書籍 11 冊・レビュー・お気に入り・いいねが投入されます。パスワードは全員 `password` です。
@@ -95,7 +114,7 @@ docker run --rm \
 ### ログインユーザー
 
 - 会員登録・ログイン・ログアウト
-- 書籍の登録（`/books/create`）。編集・削除は登録者のみ（`/books/{book}/edit`）
+- 書籍の登録（`/books/create`）。編集・削除は登録者のみ（`/books/{book}/edit`）。登録・編集画面で ISBN（13 桁）から Google Books API を検索し、タイトル・著者・概要・画像・出版日をフォームに自動入力（`GET /books/isbn/{isbn}`、認証不要。上記の API キーが必要）
 - ジャンルの一覧・詳細・登録・編集・削除（`/genres`。書籍が紐付いているジャンルは削除不可）
 - レビューの投稿（書籍詳細から）。編集・削除は投稿者のみ（`/reviews/{review}/edit`）
 - レビューへのいいね（トグル。`POST /reviews/{review}/like`）
@@ -133,7 +152,7 @@ curl -s -X POST http://localhost/api/v1/books \
 - 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
 - テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
 - 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
-- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.5%）
+- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.7%）
 
 ## コード整形（Laravel Pint）
 
@@ -228,6 +247,7 @@ erDiagram
 ## ディレクトリ構成の補足
 
 - `app/Http/Controllers/BookController.php` : 書籍の一覧・詳細・登録・編集・削除
+- `app/Http/Controllers/BookIsbnController.php` / `app/Services/GoogleBooksService.php` : ISBN 検索（Google Books API を `Http` ファサードで呼び出し、フォーム用に整形）。URL・キーは `config/services.php`（`.env`）
 - `app/Http/Controllers/GenreController.php` / `ReviewController.php` : ジャンル管理、レビューの投稿・編集・削除
 - `app/Http/Controllers/FavoriteController.php` / `ReviewLikeController.php` : お気に入り一覧・トグル、いいねのトグル
 - `app/Http/Controllers/RankingController.php` : 平均評価ランキング
