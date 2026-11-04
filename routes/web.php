@@ -5,6 +5,7 @@ use App\Http\Controllers\BookIsbnController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewLikeController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +54,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/reviews/{review}/like', [ReviewLikeController::class, 'toggle'])->whereNumber('review')->name('reviews.like');
     Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites.index');
     Route::post('/books/{book}/favorites', [FavoriteController::class, 'toggle'])->whereNumber('book')->name('favorites.toggle');
+
+    // マイ読書レポート（自分のレビューの集計）
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 });
 
 /*
@@ -63,14 +67,12 @@ Route::middleware('auth')->group(function () {
 | Advanced Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
 | ナビを含む全画面が RouteNotFoundException になるため、名前・メソッド・URI・認証だけを
 | 確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   マイレポート → #13 ／ 読書計画 → #14 ／ 通知 → #15
+|   読書計画 → #14 ／ 通知 → #15
 |
 */
 $comingSoon = fn () => abort(501, 'この機能は準備中です。');
 
 Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::get('/reports', $comingSoon)->name('reports.index');
-
     Route::get('/reading-plans', $comingSoon)->name('reading-plans.index');
     Route::get('/reading-plans/create', $comingSoon)->name('reading-plans.create');
     Route::post('/reading-plans', $comingSoon)->name('reading-plans.store');

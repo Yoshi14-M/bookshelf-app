@@ -24,7 +24,6 @@ class ProvisionalRouteTest extends TestCase
     public static function provisionalRoutes(): array
     {
         return [
-            'マイレポート' => ['get', '/reports'],
             '読書計画の一覧' => ['get', '/reading-plans'],
             '読書計画の作成フォーム' => ['get', '/reading-plans/create'],
             '読書計画の登録' => ['post', '/reading-plans'],
@@ -60,7 +59,7 @@ class ProvisionalRouteTest extends TestCase
     /** @test */
     public function 暫定ルートの名前が画面から参照できる(): void
     {
-        foreach (['reports.index', 'reading-plans.index', 'reading-plans.create', 'notifications.index'] as $name) {
+        foreach (['reading-plans.index', 'reading-plans.create', 'notifications.index'] as $name) {
             $this->assertNotEmpty(route($name));
         }
         $this->assertStringEndsWith('/reading-plans/5/complete', route('reading-plans.complete', 5));
