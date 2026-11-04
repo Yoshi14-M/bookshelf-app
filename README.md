@@ -119,6 +119,7 @@ GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1/volumes   # 省略可
 - レビューの投稿（書籍詳細から）。編集・削除は投稿者のみ（`/reviews/{review}/edit`）
 - レビューへのいいね（トグル。`POST /reviews/{review}/like`）
 - お気に入り登録（トグル。`POST /books/{book}/favorites`）とお気に入り一覧（`/favorites`）
+- マイ読書レポート（`/reports`）。自分のレビューだけを集計し、総レビュー数・読了冊数（レビューした書籍の重複なし件数）・平均評価、評価分布（星 1〜5 の件数）、高評価書籍 TOP5（評価 4 以上。同じ書籍は 1 冊として数える）、ジャンル別評価傾向 TOP5（平均評価の降順 → 件数の降順）を表示
 
 ### 公開 API（`/api/v1/books`）
 
@@ -152,7 +153,7 @@ curl -s -X POST http://localhost/api/v1/books \
 - 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
 - テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
 - 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
-- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.7%）
+- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.9%）
 
 ## コード整形（Laravel Pint）
 
@@ -251,6 +252,7 @@ erDiagram
 - `app/Http/Controllers/GenreController.php` / `ReviewController.php` : ジャンル管理、レビューの投稿・編集・削除
 - `app/Http/Controllers/FavoriteController.php` / `ReviewLikeController.php` : お気に入り一覧・トグル、いいねのトグル
 - `app/Http/Controllers/RankingController.php` : 平均評価ランキング
+- `app/Http/Controllers/ReportController.php` / `app/Services/ReadingReportService.php` : マイ読書レポート（自分のレビューの集計。Collection で集計）
 - `app/Http/Controllers/Api/V1/BookController.php` : 公開 API（`/api/v1/books`）
 - `app/Http/Requests/` : バリデーション（FormRequest。日本語の `messages()` を実装）。書籍の共通ルールは `Concerns/HasBookRules.php`、API 用は `Api/V1/`
 - `app/Http/Resources/` : API レスポンスの整形（`BookResource` / `GenreResource` / `ReviewResource`）
