@@ -153,25 +153,32 @@ READING_PLAN_BATCH_TIME=20:00   # 省略可。例: 06:30
 
 ### 公開 API（`/api/v1/books`）
 
-ベース URL は `http://localhost/api/v1` です。基本フェーズでは認証なしで、書き込み系への Sanctum 認証は応用フェーズで追加します。`Accept` ヘッダの有無にかかわらず常に JSON で応答します。
+ベース URL は `http://localhost/api/v1` です。参照（GET）は認証不要で、書き込み系（POST / PUT / PATCH / DELETE）は Laravel Sanctum のトークン認証（`Authorization: Bearer {トークン}`）が必要です。`Accept` ヘッダの有無にかかわらず常に JSON で応答します。
 
 | メソッド    | URI                    | 概要                                                     | 認証 | 成功時 |
 | ----------- | ---------------------- | -------------------------------------------------------- | ---- | ------ |
 | GET         | `/api/v1/books`        | 書籍一覧（ジャンル・平均評価・レビュー件数つき、新着順） | 不要 | 200    |
 | GET         | `/api/v1/books/{book}` | 書籍詳細（ジャンルとレビューつき）                       | 不要 | 200    |
-| POST        | `/api/v1/books`        | 書籍登録                                                 | 不要 | 201    |
-| PUT / PATCH | `/api/v1/books/{book}` | 書籍更新                                                 | 不要 | 200    |
-| DELETE      | `/api/v1/books/{book}` | 書籍削除                                                 | 不要 | 204    |
+| POST        | `/api/v1/books`        | 書籍登録（登録者はトークンの所有者）                     | 必要 | 201    |
+| PUT / PATCH | `/api/v1/books/{book}` | 書籍更新（登録者のみ）                                   | 必要 | 200    |
+| DELETE      | `/api/v1/books/{book}` | 書籍削除（登録者のみ）                                   | 必要 | 204    |
 
 - **一覧のクエリパラメータ**: `keyword`（タイトル・著者の部分一致）、`genre_id`、`page`、`per_page`（1〜100、既定 20）
-- **登録・更新のリクエスト項目**: `user_id`（登録者。検証のみでレスポンスには含めず、更新でも登録者は変更しない）、`title`、`author`、`isbn`（13 桁・一意）、`published_date`、`description`、`image_url`、`genres[]`（1 つ以上）
-- **エラー**: 存在しない書籍は 404、バリデーションエラーは 422（日本語メッセージ）。レスポンスの `average_rating` は小数第 1 位（レビューなしは `null`）
+- **登録・更新のリクエスト項目**: `title`、`author`、`isbn`（13 桁・一意）、`published_date`、`description`、`image_url`、`genres[]`（1 つ以上）
+  - 登録者はリクエストの項目ではなくトークンの所有者になります（`user_id` を送っても無視され、レスポンスにも含まれません）。更新で登録者は変わりません。
+- **エラー**: 存在しない書籍は 404 `{"message": "書籍が見つかりません。"}`、バリデーションエラーは 422（日本語メッセージ）、トークンが無い・不正は 401 `{"message": "Unauthenticated."}`、他人の書籍の更新・削除は 403 `{"error": "この操作を実行する権限がありません。"}`。レスポンスの `average_rating` は小数第 1 位（レビューなしは `null`）
+- **トークンの用意**: トークンを発行する API は用意していません（既存のエンドポイントに `auth:sanctum` を付けた構成です）。手元で試すときは、Sail の tinker で発行します。
+
+```bash
+./vendor/bin/sail artisan tinker --execute='echo App\Models\User::where("email", "yamada@example.com")->first()->createToken("local")->plainTextToken;'
+```
 
 ```bash
 curl -s "http://localhost/api/v1/books?keyword=PHP&per_page=5"
 curl -s -X POST http://localhost/api/v1/books \
+  -H 'Authorization: Bearer {発行したトークン}' \
   -H 'Content-Type: application/json' \
-  -d '{"user_id":1,"title":"サンプル","author":"著者","isbn":"9784000000001","published_date":"2024-01-01","genres":[1]}'
+  -d '{"title":"サンプル","author":"著者","isbn":"9784000000001","published_date":"2024-01-01","genres":[1]}'
 ```
 
 ## テストの実行

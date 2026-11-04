@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * 公開 API の書籍登録・更新で共通のルールと日本語メッセージ。
  *
- * 基本フェーズは認証なしのため、登録者 ID を `user_id` で受けて存在のみ検証する（レスポンスには出さない）。
+ * 登録者は入力ではなく Sanctum のトークンの所有者から決まるため、`user_id` は受け付けない（送られても無視する）。
  */
 abstract class BookRequest extends FormRequest
 {
@@ -24,10 +24,7 @@ abstract class BookRequest extends FormRequest
      */
     protected function apiRules(): array
     {
-        return [
-            'user_id' => ['required', 'integer', 'exists:users,id'],
-            ...$this->commonRules(),
-        ];
+        return $this->commonRules();
     }
 
     /**
@@ -35,12 +32,7 @@ abstract class BookRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            ...$this->commonMessages(),
-            'user_id.required' => '登録者IDは必須です。',
-            'user_id.integer' => '登録者IDは整数で指定してください。',
-            'user_id.exists' => '指定された登録者IDは存在しません。',
-        ];
+        return $this->commonMessages();
     }
 
     /**
@@ -48,9 +40,6 @@ abstract class BookRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return [
-            ...$this->commonAttributes(),
-            'user_id' => '登録者ID',
-        ];
+        return $this->commonAttributes();
     }
 }

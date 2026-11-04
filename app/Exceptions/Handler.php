@@ -6,6 +6,7 @@ use App\Models\Book;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
@@ -43,6 +44,15 @@ class Handler extends ExceptionHandler
                 : 'リソースが見つかりません。';
 
             return response()->json(['message' => $message], 404);
+        });
+
+        // 公開 API の 403（他人の書籍の更新・削除）は、PM 指定の形式の日本語メッセージで返す
+        $this->renderable(function (AccessDeniedHttpException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json(['error' => 'この操作を実行する権限がありません。'], 403);
         });
     }
 }
