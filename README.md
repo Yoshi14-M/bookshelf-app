@@ -89,7 +89,7 @@ GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1/volumes   # 省略可
 
 ## ログイン情報（シーディングで自動作成）
 
-ユーザー 5 名・ジャンル 10 件・書籍 11 冊・レビュー・お気に入り・いいねが投入されます。パスワードは全員 `password` です。
+ユーザー 5 名・ジャンル 10 件・書籍 11 冊・レビュー・お気に入り・いいね・読書計画 6 件が投入されます。パスワードは全員 `password` です。
 
 | 名前     | メールアドレス        | パスワード |
 | -------- | --------------------- | ---------- |
@@ -119,6 +119,7 @@ GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1/volumes   # 省略可
 - レビューの投稿（書籍詳細から）。編集・削除は投稿者のみ（`/reviews/{review}/edit`）
 - レビューへのいいね（トグル。`POST /reviews/{review}/like`）
 - お気に入り登録（トグル。`POST /books/{book}/favorites`）とお気に入り一覧（`/favorites`）
+- 読書計画（`/reading-plans`）。書籍と期日（今日以降）で計画を登録し、状態（進行中 / 完了 / 期限切れ）で絞り込み。期日の昇順で自分の計画だけを表示。「読了する」で完了（完了日時を記録）、期日の変更は完了前のみ（期限切れの計画の期日を今日以降にすると進行中に戻る）、削除は状態を問わず可。同じ書籍の進行中の計画は重複して登録できない
 - マイ読書レポート（`/reports`）。自分のレビューだけを集計し、総レビュー数・読了冊数（レビューした書籍の重複なし件数）・平均評価、評価分布（星 1〜5 の件数）、高評価書籍 TOP5（評価 4 以上。同じ書籍は 1 冊として数える）、ジャンル別評価傾向 TOP5（平均評価の降順 → 件数の降順）を表示
 
 ### 公開 API（`/api/v1/books`）
@@ -153,7 +154,7 @@ curl -s -X POST http://localhost/api/v1/books \
 - 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
 - テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
 - 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
-- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 98.9%）
+- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 99.1%）
 
 ## コード整形（Laravel Pint）
 
@@ -171,6 +172,8 @@ erDiagram
     users ||--o{ favorites : "お気に入り"
     books ||--o{ favorites : ""
     users ||--o{ review_likes : "いいね"
+    users ||--o{ reading_plans : "計画する"
+    books ||--o{ reading_plans : ""
     reviews ||--o{ review_likes : ""
     books ||--o{ reviews : ""
     books ||--o{ book_genre : ""
@@ -226,11 +229,20 @@ erDiagram
         bigint review_id PK, FK
         timestamp created_at
     }
+    reading_plans {
+        bigint id PK
+        bigint user_id FK
+        bigint book_id FK
+        date target_date
+        string status "in_progress / completed / expired"
+        timestamp completed_at "nullable"
+        timestamps created_at_updated_at
+    }
 ```
 
 - Book ⇄ Genre は多対多（中間テーブル `book_genre`）。ジャンルは書籍が紐付いている間は削除できません（`restrictOnDelete`）。
 - お気に入り（User ⇄ Book）、いいね（User ⇄ Review）は多対多の中間テーブルで、複合主キーにより重複登録を防ぎます。
-- 書籍・ユーザー・レビューを削除すると、紐付くレビュー・お気に入り・いいねは外部キーの `CASCADE` で削除されます。
+- 書籍・ユーザー・レビューを削除すると、紐付くレビュー・お気に入り・いいね・読書計画は外部キーの `CASCADE` で削除されます。
 - 上記以外に Laravel 標準の `password_reset_tokens` / `failed_jobs` / `personal_access_tokens` があります。
 
 ### テーブル概要
@@ -244,6 +256,7 @@ erDiagram
 | `reviews`      | 書籍へのレビュー（評価 1〜5・コメント）。同一ユーザーが同じ書籍に複数投稿可 |
 | `favorites`    | ユーザーの書籍お気に入り（中間テーブル）                                    |
 | `review_likes` | ユーザーのレビューへのいいね（中間テーブル）                                |
+| `reading_plans` | 読書計画（ユーザー・書籍・期日・状態・完了日時）。状態は Enum `ReadingPlanStatus` |
 
 ## ディレクトリ構成の補足
 
@@ -252,11 +265,12 @@ erDiagram
 - `app/Http/Controllers/GenreController.php` / `ReviewController.php` : ジャンル管理、レビューの投稿・編集・削除
 - `app/Http/Controllers/FavoriteController.php` / `ReviewLikeController.php` : お気に入り一覧・トグル、いいねのトグル
 - `app/Http/Controllers/RankingController.php` : 平均評価ランキング
+- `app/Http/Controllers/ReadingPlanController.php` / `app/Enums/ReadingPlanStatus.php` / `app/Policies/ReadingPlanPolicy.php` : 読書計画（CRUD・読了。状態は Enum + Eloquent cast、所有者のみ操作可、完了した計画は編集不可）
 - `app/Http/Controllers/ReportController.php` / `app/Services/ReadingReportService.php` : マイ読書レポート（自分のレビューの集計。Collection で集計）
 - `app/Http/Controllers/Api/V1/BookController.php` : 公開 API（`/api/v1/books`）
 - `app/Http/Requests/` : バリデーション（FormRequest。日本語の `messages()` を実装）。書籍の共通ルールは `Concerns/HasBookRules.php`、API 用は `Api/V1/`
 - `app/Http/Resources/` : API レスポンスの整形（`BookResource` / `GenreResource` / `ReviewResource`）
-- `app/Policies/` : 認可（`BookPolicy` / `ReviewPolicy` は本人のみ、`GenrePolicy` はログイン済みなら可）
+- `app/Policies/` : 認可（`BookPolicy` / `ReviewPolicy` / `ReadingPlanPolicy` は本人のみ、`GenrePolicy` はログイン済みなら可）
 - `app/Models/Book.php` : `search`（タイトル・著者の部分一致）・`inGenre`（ジャンル絞り込み）・`sortBy`（並び替え）のスコープ
 - `app/Enums/BookSort.php` : 一覧の並び順（`latest` / `oldest` / `title` / `rating`）
 - `app/Actions/Fortify/CreateNewUser.php` : 会員登録処理 / `app/Providers/FortifyServiceProvider.php` : ログイン・登録画面の紐付け

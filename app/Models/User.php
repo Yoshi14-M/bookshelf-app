@@ -55,6 +55,11 @@ class User extends Authenticatable
         return $this->hasMany(Review::class);
     }
 
+    public function readingPlans(): HasMany
+    {
+        return $this->hasMany(ReadingPlan::class);
+    }
+
     public function favoriteBooks(): BelongsToMany
     {
         return $this->belongsToMany(Book::class, 'favorites');

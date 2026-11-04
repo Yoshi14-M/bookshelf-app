@@ -5,6 +5,7 @@ use App\Http\Controllers\BookIsbnController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewLikeController;
@@ -57,6 +58,14 @@ Route::middleware('auth')->group(function () {
 
     // マイ読書レポート（自分のレビューの集計）
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
+    // 読書計画（自分の計画のみ。編集・読了は所有者のみで、完了した計画は編集不可）
+    Route::resource('reading-plans', ReadingPlanController::class)
+        ->except(['show'])
+        ->where(['reading_plan' => '[0-9]+']);
+    Route::post('/reading-plans/{reading_plan}/complete', [ReadingPlanController::class, 'complete'])
+        ->whereNumber('reading_plan')
+        ->name('reading-plans.complete');
 });
 
 /*
@@ -67,20 +76,12 @@ Route::middleware('auth')->group(function () {
 | Advanced Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
 | ナビを含む全画面が RouteNotFoundException になるため、名前・メソッド・URI・認証だけを
 | 確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   読書計画 → #14 ／ 通知 → #15
+|   通知 → #15
 |
 */
 $comingSoon = fn () => abort(501, 'この機能は準備中です。');
 
 Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::get('/reading-plans', $comingSoon)->name('reading-plans.index');
-    Route::get('/reading-plans/create', $comingSoon)->name('reading-plans.create');
-    Route::post('/reading-plans', $comingSoon)->name('reading-plans.store');
-    Route::get('/reading-plans/{reading_plan}/edit', $comingSoon)->name('reading-plans.edit');
-    Route::put('/reading-plans/{reading_plan}', $comingSoon)->name('reading-plans.update');
-    Route::delete('/reading-plans/{reading_plan}', $comingSoon)->name('reading-plans.destroy');
-    Route::post('/reading-plans/{reading_plan}/complete', $comingSoon)->name('reading-plans.complete');
-
     Route::get('/notifications', $comingSoon)->name('notifications.index');
     Route::post('/notifications/{notification}/read', $comingSoon)->name('notifications.read');
 });
