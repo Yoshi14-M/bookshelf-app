@@ -47,11 +47,14 @@ class BookController extends Controller
     }
 
     /**
-     * 書籍を登録する。`user_id` は登録者として検証のみ行い、レスポンスには出さない。
+     * 書籍を登録する（要トークン）。登録者はトークンの所有者で、レスポンスには出さない。
      */
     public function store(StoreBookRequest $request): JsonResponse
     {
-        $book = Book::create($request->safe()->except('genres'));
+        $book = Book::create([
+            ...$request->safe()->except('genres'),
+            'user_id' => $request->user()->id,
+        ]);
         $book->genres()->sync($request->validated('genres'));
 
         return (new BookResource($this->loadForResponse($book)))
@@ -60,21 +63,25 @@ class BookController extends Controller
     }
 
     /**
-     * 書籍を更新する。`user_id` は検証のみで、書籍の登録者は変更しない。
+     * 書籍を更新する（要トークン。登録者のみ。書籍の登録者は変更しない）。
      */
     public function update(UpdateBookRequest $request, Book $book): BookResource
     {
-        $book->update($request->safe()->except(['genres', 'user_id']));
+        $this->authorize('update', $book);
+
+        $book->update($request->safe()->except('genres'));
         $book->genres()->sync($request->validated('genres'));
 
         return new BookResource($this->loadForResponse($book));
     }
 
     /**
-     * 書籍を削除する（関連データは FK の CASCADE で削除される）。
+     * 書籍を削除する（要トークン。登録者のみ。関連データは FK の CASCADE で削除される）。
      */
     public function destroy(Book $book): Response
     {
+        $this->authorize('delete', $book);
+
         $book->delete();
 
         return response()->noContent();

@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class BookApiTest extends TestCase
@@ -21,7 +22,6 @@ class BookApiTest extends TestCase
     private function validInput(array $overrides = []): array
     {
         return array_merge([
-            'user_id' => User::factory()->create()->id,
             'title' => 'リーダブルコード',
             'author' => 'Dustin Boswell',
             'isbn' => '9784873115658',
@@ -30,6 +30,14 @@ class BookApiTest extends TestCase
             'image_url' => 'https://placehold.co/200x300/e2e8f0/475569?text=3',
             'genres' => [Genre::factory()->create()->id],
         ], $overrides);
+    }
+
+    /**
+     * Sanctum のトークンで認証した状態にする（書き込み系の API に必要）。
+     */
+    private function signIn(?User $user = null): User
+    {
+        return Sanctum::actingAs($user ?? User::factory()->create());
     }
 
     // ---- 一覧 ----
@@ -301,13 +309,12 @@ class BookApiTest extends TestCase
     // ---- 登録 ----
 
     /** @test */
-    public function 書籍を登録すると201で登録内容が返る(): void
+    public function 書籍を登録すると201で登録内容が返り登録者はトークンの所有者になる(): void
     {
-        $user = User::factory()->create();
+        $user = $this->signIn();
         $genres = Genre::factory()->count(2)->create();
 
         $response = $this->postJson('/api/v1/books', $this->validInput([
-            'user_id' => $user->id,
             'genres' => $genres->pluck('id')->all(),
         ]))->assertCreated()
             ->assertJsonPath('data.title', 'リーダブルコード')
@@ -325,8 +332,23 @@ class BookApiTest extends TestCase
     }
 
     /** @test */
+    public function 登録者_i_dを送っても無視されトークンの所有者が登録者になる(): void
+    {
+        $user = $this->signIn();
+        $other = User::factory()->create();
+
+        $response = $this->postJson('/api/v1/books', $this->validInput(['user_id' => $other->id]))->assertCreated();
+        $this->postJson('/api/v1/books', $this->validInput(['user_id' => 9999, 'isbn' => '9784101010014']))->assertCreated();
+
+        $this->assertSame($user->id, Book::findOrFail($response->json('data.id'))->user_id);
+        $this->assertSame(2, Book::where('user_id', $user->id)->count());
+    }
+
+    /** @test */
     public function 任意項目を省略しても登録できる(): void
     {
+        $this->signIn();
+
         $this->postJson('/api/v1/books', $this->validInput(['description' => null, 'image_url' => null]))
             ->assertCreated()
             ->assertJsonPath('data.description', null)
@@ -342,6 +364,8 @@ class BookApiTest extends TestCase
      */
     public function 入力不備のある登録は422になり日本語のエラーが返る(array $overrides, string $field, string $message): void
     {
+        $this->signIn();
+
         $this->postJson('/api/v1/books', $this->validInput($overrides))
             ->assertStatus(422)
             ->assertJsonValidationErrors([$field => $message]);
@@ -365,15 +389,13 @@ class BookApiTest extends TestCase
             'ジャンル未指定' => [['genres' => []], 'genres', 'ジャンルは必須です。'],
             'ジャンルが配列でない' => [['genres' => 'abc'], 'genres', 'ジャンルは配列で指定してください。'],
             '存在しないジャンル' => [['genres' => [9999]], 'genres.0', 'ジャンルの選択が正しくありません。'],
-            '登録者ID未指定' => [['user_id' => null], 'user_id', '登録者IDは必須です。'],
-            '登録者IDが存在しない' => [['user_id' => 9999], 'user_id', '指定された登録者IDは存在しません。'],
-            '登録者IDが整数でない' => [['user_id' => 'abc'], 'user_id', '登録者IDは整数で指定してください。'],
         ];
     }
 
     /** @test */
     public function 書籍番号が重複する登録は422になる(): void
     {
+        $this->signIn();
         Book::factory()->create(['isbn' => '9784873115658']);
 
         $this->postJson('/api/v1/books', $this->validInput())
@@ -384,6 +406,7 @@ class BookApiTest extends TestCase
     /** @test */
     public function 出版日なしでも登録でき出版日はnullで返る(): void
     {
+        $this->signIn();
         $input = $this->validInput();
         unset($input['published_date']);
 
@@ -405,15 +428,20 @@ class BookApiTest extends TestCase
     /** @test */
     public function 登録の422にはメッセージとエラー一覧が日本語で含まれる(): void
     {
+        $this->signIn();
+
         $this->postJson('/api/v1/books', ['genres' => []])
             ->assertStatus(422)
-            ->assertJsonStructure(['message', 'errors' => ['user_id', 'title', 'author', 'isbn', 'genres']])
-            ->assertJsonPath('message', '登録者IDは必須です。 （ほか 4 件のエラー）');
+            ->assertJsonStructure(['message', 'errors' => ['title', 'author', 'isbn', 'genres']])
+            ->assertJsonMissingValidationErrors('user_id')
+            ->assertJsonPath('message', 'タイトルは必須です。 （ほか 3 件のエラー）');
     }
 
     /** @test */
     public function ヘッダ指定がなくても入力不備はリダイレクトされず422になる(): void
     {
+        $this->signIn();
+
         $this->post('/api/v1/books', [])
             ->assertStatus(422)
             ->assertHeader('Content-Type', 'application/json');
@@ -424,7 +452,8 @@ class BookApiTest extends TestCase
     /** @test */
     public function 書籍を更新すると200で更新後の内容が返る(): void
     {
-        $book = Book::factory()->create(['title' => '更新前']);
+        $user = $this->signIn();
+        $book = Book::factory()->for($user)->create(['title' => '更新前']);
         $book->genres()->attach(Genre::factory()->create());
         $newGenre = Genre::factory()->create();
 
@@ -439,9 +468,9 @@ class BookApiTest extends TestCase
     }
 
     /** @test */
-    public function 更新では登録者は変更されない(): void
+    public function 更新で登録者_i_dを送っても登録者は変更されない(): void
     {
-        $owner = User::factory()->create();
+        $owner = $this->signIn();
         $book = Book::factory()->for($owner)->create();
         $other = User::factory()->create();
 
@@ -453,19 +482,9 @@ class BookApiTest extends TestCase
     }
 
     /** @test */
-    public function 更新でも登録者の指定は必須である(): void
-    {
-        $book = Book::factory()->create();
-
-        $this->putJson('/api/v1/books/'.$book->id, $this->validInput(['user_id' => null]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['user_id' => '登録者IDは必須です。']);
-    }
-
-    /** @test */
     public function 自分の書籍番号のままであれば更新できる(): void
     {
-        $book = Book::factory()->create(['isbn' => '9784873115658']);
+        $book = Book::factory()->for($this->signIn())->create(['isbn' => '9784873115658']);
 
         $this->putJson('/api/v1/books/'.$book->id, $this->validInput(['isbn' => '9784873115658']))->assertOk();
     }
@@ -474,7 +493,7 @@ class BookApiTest extends TestCase
     public function 他の書籍と同じ書籍番号には更新できない(): void
     {
         Book::factory()->create(['isbn' => '9784873115658']);
-        $book = Book::factory()->create();
+        $book = Book::factory()->for($this->signIn())->create();
 
         $this->putJson('/api/v1/books/'.$book->id, $this->validInput())
             ->assertStatus(422)
@@ -484,6 +503,8 @@ class BookApiTest extends TestCase
     /** @test */
     public function 存在しない書籍の更新は404になる(): void
     {
+        $this->signIn();
+
         $this->putJson('/api/v1/books/9999', $this->validInput())
             ->assertNotFound()
             ->assertExactJson(['message' => '書籍が見つかりません。']);
@@ -492,7 +513,7 @@ class BookApiTest extends TestCase
     /** @test */
     public function 入力不備のある更新は422になり元の内容は変わらない(): void
     {
-        $book = Book::factory()->create(['title' => '更新前']);
+        $book = Book::factory()->for($this->signIn())->create(['title' => '更新前']);
 
         $this->putJson('/api/v1/books/'.$book->id, $this->validInput(['title' => '']))
             ->assertStatus(422)
@@ -506,8 +527,8 @@ class BookApiTest extends TestCase
     /** @test */
     public function 書籍を削除すると204でボディはなく関連データも削除される(): void
     {
-        $user = User::factory()->create();
-        $book = Book::factory()->create();
+        $user = $this->signIn();
+        $book = Book::factory()->for($user)->create();
         $book->genres()->attach(Genre::factory()->create());
         $review = Review::factory()->for($book)->create();
         $review->likedByUsers()->attach($user);
@@ -526,6 +547,8 @@ class BookApiTest extends TestCase
     /** @test */
     public function 存在しない書籍の削除は404になる(): void
     {
+        $this->signIn();
+
         $this->deleteJson('/api/v1/books/9999')
             ->assertNotFound()
             ->assertExactJson(['message' => '書籍が見つかりません。']);
@@ -534,7 +557,7 @@ class BookApiTest extends TestCase
     /** @test */
     public function 削除済みの書籍を再度削除すると404になる(): void
     {
-        $book = Book::factory()->create();
+        $book = Book::factory()->for($this->signIn())->create();
 
         $this->deleteJson('/api/v1/books/'.$book->id)->assertNoContent();
         $this->deleteJson('/api/v1/books/'.$book->id)->assertNotFound();
