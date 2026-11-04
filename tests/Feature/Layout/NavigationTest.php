@@ -1,9 +1,10 @@
 <?php
 
-namespace Tests\Feature\Provisional;
+namespace Tests\Feature\Layout;
 
 use App\Models\Book;
 use App\Models\Genre;
+use App\Models\ReadingPlan;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,52 +12,11 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Advanced Blade が参照する未実装ルート（暫定ルート）と、それを前提にしたナビの表示。
- * 本実装（#12〜#15）に置き換えたら、該当のテストは各機能のテストへ移して削除する。
+ * 応用版の画面（Advanced Blade）のナビゲーションと、既存の全画面の表示。
  */
-class ProvisionalRouteTest extends TestCase
+class NavigationTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * @return array<string, array{0: string, 1: string}>
-     */
-    public static function provisionalRoutes(): array
-    {
-        return [
-            '通知一覧' => ['get', '/notifications'],
-            '通知の既読化' => ['post', '/notifications/abc/read'],
-        ];
-    }
-
-    /**
-     * @test
-     *
-     * @dataProvider provisionalRoutes
-     */
-    public function 暫定ルートは未認証だとログイン画面へ遷移する(string $method, string $uri): void
-    {
-        $this->{$method}($uri)->assertRedirect(route('login'));
-    }
-
-    /**
-     * @test
-     *
-     * @dataProvider provisionalRoutes
-     */
-    public function 暫定ルートは認証済みだと準備中の501を返す(string $method, string $uri): void
-    {
-        $this->actingAs(User::factory()->create())->{$method}($uri)->assertStatus(501);
-    }
-
-    /** @test */
-    public function 暫定ルートの名前が画面から参照できる(): void
-    {
-        foreach (['notifications.index'] as $name) {
-            $this->assertNotEmpty(route($name));
-        }
-        $this->assertStringEndsWith('/notifications/abc/read', route('notifications.read', 'abc'));
-    }
 
     /** @test */
     public function ログイン中のナビにマイレポートと読書計画と通知へのリンクが表示される(): void
@@ -98,13 +58,14 @@ class ProvisionalRouteTest extends TestCase
     }
 
     /** @test */
-    public function 応用版の画面に差し替えても既存の全画面がログイン中に例外なく表示される(): void
+    public function 応用版の画面に差し替えても全画面がログイン中に例外なく表示される(): void
     {
         $user = User::factory()->create();
         $genre = Genre::factory()->create();
         $book = Book::factory()->for($user)->create(['published_date' => null]);
         $book->genres()->attach($genre);
         $review = Review::factory()->for($book)->for($user)->create();
+        $plan = ReadingPlan::factory()->for($user)->for($book)->create();
 
         $this->actingAs($user);
 
@@ -120,6 +81,11 @@ class ProvisionalRouteTest extends TestCase
             route('reviews.edit', $review),
             route('favorites.index'),
             route('ranking.index'),
+            route('reports.index'),
+            route('reading-plans.index'),
+            route('reading-plans.create'),
+            route('reading-plans.edit', $plan),
+            route('notifications.index'),
         ] as $url) {
             $this->get($url)->assertOk();
         }
