@@ -4,6 +4,7 @@ use App\Http\Controllers\BookController;
 use App\Http\Controllers\BookIsbnController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\ReportController;
@@ -66,22 +67,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/reading-plans/{reading_plan}/complete', [ReadingPlanController::class, 'complete'])
         ->whereNumber('reading_plan')
         ->name('reading-plans.complete');
-});
 
-/*
-|--------------------------------------------------------------------------
-| 暫定ルート（応用フェーズ）
-|--------------------------------------------------------------------------
-|
-| Advanced Blade が route() で参照するが、まだ実装していない画面のルート。これが無いと
-| ナビを含む全画面が RouteNotFoundException になるため、名前・メソッド・URI・認証だけを
-| 確定させて「準備中」(501) を返す。各機能の実装時に本実装へ置き換えて削除する。
-|   通知 → #15
-|
-*/
-$comingSoon = fn () => abort(501, 'この機能は準備中です。');
-
-Route::middleware('auth')->group(function () use ($comingSoon) {
-    Route::get('/notifications', $comingSoon)->name('notifications.index');
-    Route::post('/notifications/{notification}/read', $comingSoon)->name('notifications.read');
+    // 通知（自分の通知のみ。既読にできるのも自分の通知だけで、他人の通知は 404）
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
 });

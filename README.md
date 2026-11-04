@@ -11,7 +11,7 @@
 - MySQL 8.4
 - Laravel Sail（Docker）
 - Laravel Fortify（認証）
-- Laravel Sanctum（導入済み。公開 API の認証は応用フェーズで使用）
+- Laravel Sanctum
 - Blade / Vite 5 / Tailwind CSS 3 / Alpine.js 3
 - PHPUnit（テストは SQLite インメモリ）/ Laravel Pint
 
@@ -79,13 +79,41 @@ GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1/volumes   # 省略可
 
 `GET /books/isbn/{isbn}` のレスポンス（認証不要。失敗時は `{"error": "…"}`）:
 
-| 状況                                 | ステータス | `error` のメッセージ                                                                      |
-| ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------- |
-| 取得成功                             | 200        | （`title` / `author` / `description` / `image_url` / `published_date` を返す）            |
-| ISBN が 13 桁の数字でない            | 400        | ISBNは13桁で入力してください。                                                            |
-| 書籍が見つからない                   | 404        | 書籍が見つかりませんでした。                                                              |
-| Google Books API のクォータ超過      | 429        | Google Books API のクォータを超過しました。.env に GOOGLE_BOOKS_API_KEY を設定してください。 |
-| その他の API 通信エラー              | 500        | API通信エラーが発生しました。                                                             |
+| 状況                            | ステータス | `error` のメッセージ                                                                         |
+| ------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| 取得成功                        | 200        | （`title` / `author` / `description` / `image_url` / `published_date` を返す）               |
+| ISBN が 13 桁の数字でない       | 400        | ISBNは13桁で入力してください。                                                               |
+| 書籍が見つからない              | 404        | 書籍が見つかりませんでした。                                                                 |
+| Google Books API のクォータ超過 | 429        | Google Books API のクォータを超過しました。.env に GOOGLE_BOOKS_API_KEY を設定してください。 |
+| その他の API 通信エラー         | 500        | API通信エラーが発生しました。                                                                |
+
+### 読書計画の日次バッチ（通知・自動失効）の設定
+
+読書計画の期限切れへの更新とリマインダー通知は、Laravel のスケジューラ（Schedule + Console Command）で毎日実行されます。既定の実行時刻は **20:00**（アプリのタイムゾーン `Asia/Tokyo`）で、`.env` の `READING_PLAN_BATCH_TIME`（`HH:MM` 形式）で変更できます。
+
+```
+READING_PLAN_BATCH_TIME=20:00   # 省略可。例: 06:30
+```
+
+| コマンド               | 内容                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `reading-plans:expire` | 期日を経過した進行中（`in_progress`）の計画を期限切れ（`expired`）にする。期日が今日の計画は対象外                    |
+| `reading-plans:remind` | 期日の 3 日前・当日の進行中の計画と、3 日後の期限切れの計画の所有者に通知（データベースのみ）を送る。完了済みは対象外 |
+
+- スケジューラは、先に `reading-plans:expire`、次に `reading-plans:remind` の順で実行します（失効の後にリマインドするため、期日の 3 日後の通知は期限切れになった計画が対象です）。
+- 通知の重複防止は行っていません。同じ日に 2 回実行すると 2 通送られます（実行した時点の状態だけで判定します）。
+- スケジューラの起動: 本番は cron で `* * * * * php artisan schedule:run` を登録します。開発環境（Sail）では次のどちらかで確認できます。
+
+```bash
+./vendor/bin/sail artisan schedule:work   # 起動したままにして、設定した時刻に自動実行
+./vendor/bin/sail artisan schedule:list   # 登録内容と次回の実行時刻を確認
+
+# 時刻を待たずに動作確認する（この順で実行する）
+./vendor/bin/sail artisan reading-plans:expire
+./vendor/bin/sail artisan reading-plans:remind
+```
+
+- シードの読書計画で確認する場合: 山田太郎（`yamada@example.com`）でログインし、上記コマンドを実行すると、通知一覧（`/notifications`）に 3 通（期日の 3 日前・当日・3 日後）が届き、期日を 3 日過ぎていた計画は「期限切れ」になります。
 
 ## ログイン情報（シーディングで自動作成）
 
@@ -119,6 +147,7 @@ GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1/volumes   # 省略可
 - レビューの投稿（書籍詳細から）。編集・削除は投稿者のみ（`/reviews/{review}/edit`）
 - レビューへのいいね（トグル。`POST /reviews/{review}/like`）
 - お気に入り登録（トグル。`POST /books/{book}/favorites`）とお気に入り一覧（`/favorites`）
+- 通知（`/notifications`）。読書計画のリマインダー（期日の 3 日前・当日・3 日後）を新しい順に表示し、未読の件数をヘッダーのベルに表示。「既読にする」で既読化（自分の通知のみ。他人の通知は 404）
 - 読書計画（`/reading-plans`）。書籍と期日（今日以降）で計画を登録し、状態（進行中 / 完了 / 期限切れ）で絞り込み。期日の昇順で自分の計画だけを表示。「読了する」で完了（完了日時を記録）、期日の変更は完了前のみ（期限切れの計画の期日を今日以降にすると進行中に戻る）、削除は状態を問わず可。同じ書籍の進行中の計画は重複して登録できない
 - マイ読書レポート（`/reports`）。自分のレビューだけを集計し、総レビュー数・読了冊数（レビューした書籍の重複なし件数）・平均評価、評価分布（星 1〜5 の件数）、高評価書籍 TOP5（評価 4 以上。同じ書籍は 1 冊として数える）、ジャンル別評価傾向 TOP5（平均評価の降順 → 件数の降順）を表示
 
@@ -154,7 +183,7 @@ curl -s -X POST http://localhost/api/v1/books \
 - 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
 - テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
 - 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
-- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 99.1%）
+- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 99.3%）
 
 ## コード整形（Laravel Pint）
 
@@ -247,15 +276,16 @@ erDiagram
 
 ### テーブル概要
 
-| テーブル       | 説明                                                                        |
-| -------------- | --------------------------------------------------------------------------- |
-| `users`        | ユーザー（会員登録・ログイン用）                                            |
-| `genres`       | ジャンル（共有マスタ。名前は一意）                                          |
-| `books`        | 書籍。`user_id` は登録者、`isbn` は 13 桁で一意。`published_date` は任意      |
-| `book_genre`   | 書籍とジャンルの中間テーブル（1 冊に複数ジャンル可）                        |
-| `reviews`      | 書籍へのレビュー（評価 1〜5・コメント）。同一ユーザーが同じ書籍に複数投稿可 |
-| `favorites`    | ユーザーの書籍お気に入り（中間テーブル）                                    |
-| `review_likes` | ユーザーのレビューへのいいね（中間テーブル）                                |
+| テーブル        | 説明                                                                              |
+| --------------- | --------------------------------------------------------------------------------- |
+| `users`         | ユーザー（会員登録・ログイン用）                                                  |
+| `genres`        | ジャンル（共有マスタ。名前は一意）                                                |
+| `books`         | 書籍。`user_id` は登録者、`isbn` は 13 桁で一意。`published_date` は任意          |
+| `book_genre`    | 書籍とジャンルの中間テーブル（1 冊に複数ジャンル可）                              |
+| `reviews`       | 書籍へのレビュー（評価 1〜5・コメント）。同一ユーザーが同じ書籍に複数投稿可       |
+| `favorites`     | ユーザーの書籍お気に入り（中間テーブル）                                          |
+| `review_likes`  | ユーザーのレビューへのいいね（中間テーブル）                                      |
+| `notifications` | Laravel 標準の通知（データベースチャネル）。読書計画のリマインダーを保存          |
 | `reading_plans` | 読書計画（ユーザー・書籍・期日・状態・完了日時）。状態は Enum `ReadingPlanStatus` |
 
 ## ディレクトリ構成の補足
@@ -265,6 +295,8 @@ erDiagram
 - `app/Http/Controllers/GenreController.php` / `ReviewController.php` : ジャンル管理、レビューの投稿・編集・削除
 - `app/Http/Controllers/FavoriteController.php` / `ReviewLikeController.php` : お気に入り一覧・トグル、いいねのトグル
 - `app/Http/Controllers/RankingController.php` : 平均評価ランキング
+- `app/Console/Commands/ExpireReadingPlans.php` / `SendReadingPlanReminders.php` / `app/Services/ReadingPlanReminderService.php` / `app/Notifications/ReadingPlanReminder.php` / `app/Enums/ReminderTiming.php` : 読書計画の日次バッチ（失効とリマインダー通知。スケジュールは `app/Console/Kernel.php`、実行時刻は `config/bookshelf.php`）
+- `app/Http/Controllers/NotificationController.php` : 通知一覧・既読化
 - `app/Http/Controllers/ReadingPlanController.php` / `app/Enums/ReadingPlanStatus.php` / `app/Policies/ReadingPlanPolicy.php` : 読書計画（CRUD・読了。状態は Enum + Eloquent cast、所有者のみ操作可、完了した計画は編集不可）
 - `app/Http/Controllers/ReportController.php` / `app/Services/ReadingReportService.php` : マイ読書レポート（自分のレビューの集計。Collection で集計）
 - `app/Http/Controllers/Api/V1/BookController.php` : 公開 API（`/api/v1/books`）
