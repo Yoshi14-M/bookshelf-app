@@ -308,7 +308,7 @@ class ReadingReportTest extends TestCase
     // ---- 日時の扱い ----
 
     /** @test */
-    public function 投稿日時が同じ場合は_i_dの新しい順で安定して並ぶ(): void
+    public function 投稿日時が同じ場合は登録順の新しい順で安定して並ぶ(): void
     {
         $at = Carbon::parse('2026-01-01 00:00:00')->toDateTimeString();
         $first = $this->review($this->book('先'), 4, createdAt: $at);

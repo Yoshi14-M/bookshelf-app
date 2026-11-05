@@ -3,6 +3,7 @@
 ## 概要
 
 ユーザーが書籍を登録・閲覧し、レビューの投稿、お気に入り登録、レビューへのいいねを行える書籍レビューアプリです。書籍はジャンルで分類され、レビューの平均評価によるランキングを確認できます。画面（Blade + セッション認証）に加えて、外部アプリケーション向けの公開 API（JSON）も提供します。
+また、書籍一覧の検索・並び替え、ISBN からの書籍情報の自動入力（Google Books API）、マイ読書レポート、読書計画とリマインダー通知（日次バッチ）、公開 API の Sanctum トークン認証を備えています。
 
 ## 使用技術
 
@@ -11,7 +12,8 @@
 - MySQL 8.4
 - Laravel Sail（Docker）
 - Laravel Fortify（認証）
-- Laravel Sanctum
+- Laravel Sanctum（公開 API のトークン認証）
+- Google Books API（ISBN 検索。`Http` ファサードで呼び出し）
 - Blade / Vite 5 / Tailwind CSS 3 / Alpine.js 3
 - PHPUnit（テストは SQLite インメモリ）/ Laravel Pint
 
@@ -100,8 +102,8 @@ READING_PLAN_BATCH_TIME=20:00   # 省略可。例: 06:30
 | `reading-plans:expire` | 期日を経過した進行中（`in_progress`）の計画を期限切れ（`expired`）にする。期日が今日の計画は対象外                    |
 | `reading-plans:remind` | 期日の 3 日前・当日の進行中の計画と、3 日後の期限切れの計画の所有者に通知（データベースのみ）を送る。完了済みは対象外 |
 
+- 用語: **失効**はバッチ処理（`reading-plans:expire`）、**期限切れ**は計画のステータス（`expired`）です。失効処理で進行中の計画が期限切れになり、リマインド処理が期限切れの計画を「期日の 3 日後」の通知の対象にします。
 - スケジューラは、先に `reading-plans:expire`、次に `reading-plans:remind` の順で実行します（失効の後にリマインドするため、期日の 3 日後の通知は期限切れになった計画が対象です）。
-- 通知の重複防止は行っていません。同じ日に 2 回実行すると 2 通送られます（実行した時点の状態だけで判定します）。
 - スケジューラの起動: 本番は cron で `* * * * * php artisan schedule:run` を登録します。開発環境（Sail）では次のどちらかで確認できます。
 
 ```bash
@@ -165,7 +167,7 @@ READING_PLAN_BATCH_TIME=20:00   # 省略可。例: 06:30
 
 - **一覧のクエリパラメータ**: `keyword`（タイトル・著者の部分一致）、`genre_id`、`page`、`per_page`（1〜100、既定 20）
 - **登録・更新のリクエスト項目**: `title`、`author`、`isbn`（13 桁・一意）、`published_date`、`description`、`image_url`、`genres[]`（1 つ以上）
-  - 登録者はリクエストの項目ではなくトークンの所有者になります（`user_id` を送っても無視され、レスポンスにも含まれません）。更新で登録者は変わりません。
+    - 登録者はリクエストの項目ではなくトークンの所有者になります（`user_id` を送っても無視され、レスポンスにも含まれません）。更新で登録者は変わりません。
 - **エラー**: 存在しない書籍は 404 `{"message": "書籍が見つかりません。"}`、バリデーションエラーは 422（日本語メッセージ）、トークンが無い・不正は 401 `{"message": "Unauthenticated."}`、他人の書籍の更新・削除は 403 `{"error": "この操作を実行する権限がありません。"}`。レスポンスの `average_rating` は小数第 1 位（レビューなしは `null`）
 - **トークンの用意**: トークンを発行する API は用意していません（既存のエンドポイントに `auth:sanctum` を付けた構成です）。手元で試すときは、Sail の tinker で発行します。
 
@@ -190,7 +192,12 @@ curl -s -X POST http://localhost/api/v1/books \
 - 各テストクラスは `RefreshDatabase` を使い、DB は SQLite インメモリ（`phpunit.xml`）です。
 - テストメソッドは `/** @test */` を付け、検証内容が分かる日本語名にしています。
 - 書籍検索のキーワード記号（`%` `_` `\`）の挙動を確認するテスト 1 件は、MySQL の `LIKE` 仕様に依存するため、SQLite では skip されます。
-- カバレッジの確認: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 99.3%）
+- カバレッジの確認（目標: 基本 60% 超 / 応用 80% 以上）: `SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail artisan test --coverage`（現在 99.3%）
+- MySQL でも全テストを実行する場合（skip されるテストも実行される）。開発 DB を初期化しないよう、Sail が作成済みの `testing` DB を指定します。
+
+```bash
+./vendor/bin/sail exec -u sail -e DB_CONNECTION=mysql -e DB_DATABASE=testing laravel.test php artisan test
+```
 
 ## コード整形（Laravel Pint）
 
@@ -209,6 +216,7 @@ erDiagram
     books ||--o{ favorites : ""
     users ||--o{ review_likes : "いいね"
     users ||--o{ reading_plans : "計画する"
+    users ||--o{ notifications : "通知を受ける"
     books ||--o{ reading_plans : ""
     reviews ||--o{ review_likes : ""
     books ||--o{ reviews : ""
@@ -221,9 +229,6 @@ erDiagram
         string email UK
         timestamp email_verified_at
         string password
-        text two_factor_secret
-        text two_factor_recovery_codes
-        timestamp two_factor_confirmed_at
         string remember_token
         timestamps created_at_updated_at
     }
@@ -265,6 +270,15 @@ erDiagram
         bigint review_id PK, FK
         timestamp created_at
     }
+    notifications {
+        uuid id PK
+        string type "通知クラス"
+        string notifiable_type "users"
+        bigint notifiable_id "ユーザー ID"
+        text data "title / body / timing など"
+        timestamp read_at "nullable"
+        timestamps created_at_updated_at
+    }
     reading_plans {
         bigint id PK
         bigint user_id FK
@@ -278,8 +292,8 @@ erDiagram
 
 - Book ⇄ Genre は多対多（中間テーブル `book_genre`）。ジャンルは書籍が紐付いている間は削除できません（`restrictOnDelete`）。
 - お気に入り（User ⇄ Book）、いいね（User ⇄ Review）は多対多の中間テーブルで、複合主キーにより重複登録を防ぎます。
-- 書籍・ユーザー・レビューを削除すると、紐付くレビュー・お気に入り・いいね・読書計画は外部キーの `CASCADE` で削除されます。
-- 上記以外に Laravel 標準の `password_reset_tokens` / `failed_jobs` / `personal_access_tokens` があります。
+- 書籍の削除は `BookService` が 1 つのトランザクションで、レビューのいいね・レビュー・お気に入り・ジャンルの紐付け・読書計画を明示的に削除してから書籍を削除します（途中で失敗すると何も削除されません）。外部キーにも `CASCADE` を設定しており、ユーザー・レビューの削除でも紐付くデータが削除されます。
+- 上記以外に Laravel 標準の `notifications`（通知。ユーザーに紐付く）/ `password_reset_tokens` / `failed_jobs` / `personal_access_tokens`（Sanctum のトークン）があります。
 
 ### テーブル概要
 
@@ -297,7 +311,7 @@ erDiagram
 
 ## ディレクトリ構成の補足
 
-- `app/Http/Controllers/BookController.php` : 書籍の一覧・詳細・登録・編集・削除
+- `app/Http/Controllers/BookController.php` / `app/Services/BookService.php` : 書籍の一覧・詳細・登録・編集・削除（登録・更新・削除は `BookService` が `DB::transaction()` で実行。Web と公開 API で共有）
 - `app/Http/Controllers/BookIsbnController.php` / `app/Services/GoogleBooksService.php` : ISBN 検索（Google Books API を `Http` ファサードで呼び出し、フォーム用に整形）。URL・キーは `config/services.php`（`.env`）
 - `app/Http/Controllers/GenreController.php` / `ReviewController.php` : ジャンル管理、レビューの投稿・編集・削除
 - `app/Http/Controllers/FavoriteController.php` / `ReviewLikeController.php` : お気に入り一覧・トグル、いいねのトグル

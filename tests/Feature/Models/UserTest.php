@@ -5,6 +5,7 @@ namespace Tests\Feature\Models;
 use App\Models\Book;
 use App\Models\Review;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -60,5 +61,27 @@ class UserTest extends TestCase
         $this->assertModelMissing($book);
         $this->assertModelMissing($review);
         $this->assertDatabaseCount('favorites', 0);
+    }
+
+    /** @test */
+    public function 同じ書籍を重複してお気に入りにするとデータベースの制約で拒否される(): void
+    {
+        $user = User::factory()->create();
+        $book = Book::factory()->create();
+        $user->favoriteBooks()->attach($book);
+
+        $this->expectException(QueryException::class);
+
+        $user->favoriteBooks()->attach($book);
+    }
+
+    /** @test */
+    public function 存在しない書籍はお気に入りにできない(): void
+    {
+        $user = User::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        $user->favoriteBooks()->attach(99999);
     }
 }

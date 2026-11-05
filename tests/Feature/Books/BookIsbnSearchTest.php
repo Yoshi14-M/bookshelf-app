@@ -224,7 +224,7 @@ class BookIsbnSearchTest extends TestCase
     }
 
     /** @test */
-    public function isb_n13を持たず同じ書籍の_isb_n10だけを持つ場合も一致として扱う(): void
+    public function 十三桁の書籍番号を持たず同じ書籍の十桁の書籍番号だけを持つ場合も一致として扱う(): void
     {
         Http::fake(['*' => Http::response($this->volumes([
             'title' => '吾輩は猫である',
@@ -235,7 +235,7 @@ class BookIsbnSearchTest extends TestCase
     }
 
     /** @test */
-    public function チェックディジットが_xの_isb_n10にも一致する(): void
+    public function チェックディジットが英字の十桁の書籍番号にも一致する(): void
     {
         // 080442957X の本体 9 桁の加重和は 199（11 で割った余りが 1）なので、チェックディジットは X になる
         Http::fake(['*' => Http::response($this->volumes([
@@ -247,7 +247,7 @@ class BookIsbnSearchTest extends TestCase
     }
 
     /** @test */
-    public function 接頭辞979の書籍番号は_isb_n13の完全一致だけで判定する(): void
+    public function 接頭辞979の書籍番号は十三桁の完全一致だけで判定する(): void
     {
         Http::fake(['*' => Http::response($this->volumes([
             'title' => '別の本',

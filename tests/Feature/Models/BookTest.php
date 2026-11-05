@@ -134,4 +134,24 @@ class BookTest extends TestCase
         $this->assertStringNotContainsString('like', Book::search('  ')->toSql());
         $this->assertStringNotContainsString('like', Book::search(null)->toSql());
     }
+
+    /** @test */
+    public function 同じジャンルを重複して紐付けるとデータベースの制約で拒否される(): void
+    {
+        $book = Book::factory()->create();
+        $genre = Genre::factory()->create();
+        $book->genres()->attach($genre);
+
+        $this->expectException(QueryException::class);
+
+        $book->genres()->attach($genre);
+    }
+
+    /** @test */
+    public function 存在しない登録者の書籍は外部キー制約で登録できない(): void
+    {
+        $this->expectException(QueryException::class);
+
+        Book::factory()->create(['user_id' => 99999]);
+    }
 }

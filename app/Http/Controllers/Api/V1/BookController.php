@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\StoreBookRequest;
 use App\Http\Requests\Api\V1\UpdateBookRequest;
 use App\Http\Resources\BookResource;
 use App\Models\Book;
+use App\Services\BookService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -49,13 +50,9 @@ class BookController extends Controller
     /**
      * 書籍を登録する（要トークン）。登録者はトークンの所有者で、レスポンスには出さない。
      */
-    public function store(StoreBookRequest $request): JsonResponse
+    public function store(StoreBookRequest $request, BookService $books): JsonResponse
     {
-        $book = Book::create([
-            ...$request->safe()->except('genres'),
-            'user_id' => $request->user()->id,
-        ]);
-        $book->genres()->sync($request->validated('genres'));
+        $book = $books->create($request->user(), $request->safe()->except('genres'), $request->validated('genres'));
 
         return (new BookResource($this->loadForResponse($book)))
             ->response()
@@ -65,24 +62,23 @@ class BookController extends Controller
     /**
      * 書籍を更新する（要トークン。登録者のみ。書籍の登録者は変更しない）。
      */
-    public function update(UpdateBookRequest $request, Book $book): BookResource
+    public function update(UpdateBookRequest $request, Book $book, BookService $books): BookResource
     {
         $this->authorize('update', $book);
 
-        $book->update($request->safe()->except('genres'));
-        $book->genres()->sync($request->validated('genres'));
+        $books->update($book, $request->safe()->except('genres'), $request->validated('genres'));
 
         return new BookResource($this->loadForResponse($book));
     }
 
     /**
-     * 書籍を削除する（要トークン。登録者のみ。関連データは FK の CASCADE で削除される）。
+     * 書籍を削除する（要トークン。登録者のみ。レビュー・お気に入り・読書計画などの関連データも同時に削除する）。
      */
-    public function destroy(Book $book): Response
+    public function destroy(Book $book, BookService $books): Response
     {
         $this->authorize('delete', $book);
 
-        $book->delete();
+        $books->delete($book);
 
         return response()->noContent();
     }

@@ -18,6 +18,9 @@ class SendReadingPlanReminders extends Command
      */
     protected $description = '読書計画の期日の3日前・当日・3日後にリマインダー通知を送る（失効処理の後に実行する）';
 
+    /**
+     * リマインダー通知を送り、タイミングごとの件数と合計を表示する。
+     */
     public function handle(ReadingPlanReminderService $service): int
     {
         $counts = $service->sendReminders();

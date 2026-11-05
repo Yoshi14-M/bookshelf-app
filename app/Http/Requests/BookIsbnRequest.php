@@ -13,6 +13,9 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  */
 class BookIsbnRequest extends FormRequest
 {
+    /**
+     * ISBN 検索は認証不要で、誰でも利用できる。
+     */
     public function authorize(): bool
     {
         return true;
@@ -38,6 +41,11 @@ class BookIsbnRequest extends FormRequest
         ];
     }
 
+    /**
+     * 検証エラーを、画面の JS が表示できる `{error}` の JSON（400）で返す。
+     *
+     * @throws HttpResponseException
+     */
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(

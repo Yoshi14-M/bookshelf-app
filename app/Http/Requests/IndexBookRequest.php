@@ -13,6 +13,9 @@ use Illuminate\Validation\ValidationException;
  */
 class IndexBookRequest extends FormRequest
 {
+    /**
+     * 書籍一覧はゲストを含め誰でも閲覧できる。
+     */
     public function authorize(): bool
     {
         return true;

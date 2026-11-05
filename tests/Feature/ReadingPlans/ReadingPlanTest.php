@@ -75,7 +75,7 @@ class ReadingPlanTest extends TestCase
     }
 
     /** @test */
-    public function 自分の計画だけが期日の昇順で表示され同じ日は_i_d順になる(): void
+    public function 自分の計画だけが期日の昇順で表示され同じ日は登録順になる(): void
     {
         $other = User::factory()->create();
         $later = $this->plan(['target_date' => '2026-12-10', 'book_id' => Book::factory()->create(['title' => '十二月の本'])]);

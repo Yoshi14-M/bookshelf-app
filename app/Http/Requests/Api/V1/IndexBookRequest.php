@@ -6,6 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class IndexBookRequest extends FormRequest
 {
+    /**
+     * 一覧は認証不要で、誰でも利用できる。
+     */
     public function authorize(): bool
     {
         return true;
