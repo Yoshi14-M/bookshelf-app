@@ -39,7 +39,7 @@ docker run --rm \
   -u "$(id -u):$(id -g)" \
   -v "$(pwd):/var/www/html" -w /var/www/html \
   -e COMPOSER_CACHE_DIR=/tmp/composer_cache \
-  laravelsail/php85-composer:latest \
+  laravelsail/php82-composer:latest \
   composer install --ignore-platform-reqs
 ```
 
