@@ -8,6 +8,9 @@ use Illuminate\Validation\Rule;
 
 class StoreReadingPlanRequest extends ReadingPlanRequest
 {
+    /**
+     * 読書計画はログイン済みなら誰でも作成できる（`ReadingPlanPolicy@create`）。
+     */
     public function authorize(): bool
     {
         return $this->user()->can('create', ReadingPlan::class);

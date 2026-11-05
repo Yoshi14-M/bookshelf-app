@@ -6,6 +6,9 @@ use Illuminate\Validation\Rule;
 
 class StoreBookRequest extends BookRequest
 {
+    /**
+     * 書籍の登録はログイン済みなら誰でもできる（ルートの `auth` ミドルウェアで保証）。
+     */
     public function authorize(): bool
     {
         return true;

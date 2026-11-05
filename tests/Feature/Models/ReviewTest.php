@@ -5,6 +5,7 @@ namespace Tests\Feature\Models;
 use App\Models\Book;
 use App\Models\Review;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -78,5 +79,33 @@ class ReviewTest extends TestCase
         $review->delete();
 
         $this->assertDatabaseCount('review_likes', 0);
+    }
+
+    /** @test */
+    public function 同じユーザーが同じレビューに重複していいねするとデータベースの制約で拒否される(): void
+    {
+        $review = Review::factory()->create();
+        $user = User::factory()->create();
+        $review->likedByUsers()->attach($user);
+
+        $this->expectException(QueryException::class);
+
+        $review->likedByUsers()->attach($user);
+    }
+
+    /** @test */
+    public function 存在しない書籍へのレビューは外部キー制約で登録できない(): void
+    {
+        $this->expectException(QueryException::class);
+
+        Review::factory()->create(['book_id' => 99999]);
+    }
+
+    /** @test */
+    public function 存在しないユーザーのレビューは外部キー制約で登録できない(): void
+    {
+        $this->expectException(QueryException::class);
+
+        Review::factory()->create(['user_id' => 99999]);
     }
 }

@@ -33,7 +33,7 @@ class ReadingPlanSeeder extends Seeder
             [$users[0], $today->copy()->addDays(3), ReadingPlanStatus::InProgress, null],
             // 当日のリマインダー対象
             [$users[0], $today->copy(), ReadingPlanStatus::InProgress, null],
-            // バッチで期限切れになり、3 日後のリマインダー対象にもなる（二重シナリオ）
+            // 同じバッチ実行で、失効処理により期限切れになり、その後に 3 日後のリマインダー対象にもなる（要件シートの「二重シナリオ」）
             [$users[0], $today->copy()->subDays(3), ReadingPlanStatus::InProgress, null],
             // リマインダー対象外
             [$users[0], $today->copy()->addDays(7), ReadingPlanStatus::InProgress, null],

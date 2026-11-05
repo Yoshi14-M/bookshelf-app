@@ -11,6 +11,10 @@ use Illuminate\Notifications\Notification;
  */
 class ReadingPlanReminder extends Notification
 {
+    /**
+     * @param  ReadingPlan  $readingPlan  通知の対象の読書計画（書籍を読み込み済みにしておく）
+     * @param  ReminderTiming  $timing  リマインドのタイミング
+     */
     public function __construct(
         private readonly ReadingPlan $readingPlan,
         private readonly ReminderTiming $timing,

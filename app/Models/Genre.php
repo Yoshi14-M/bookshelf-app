@@ -17,6 +17,11 @@ class Genre extends Model
         'name',
     ];
 
+    /**
+     * ジャンルに属する書籍（中間テーブル `book_genre`）。
+     *
+     * @return BelongsToMany<Book>
+     */
     public function books(): BelongsToMany
     {
         return $this->belongsToMany(Book::class);

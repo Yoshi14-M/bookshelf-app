@@ -97,7 +97,7 @@ class BookApiAuthTest extends TestCase
     }
 
     /** @test */
-    public function ヘッダ指定がなくても未認証はリダイレクトされず401の_jso_nになる(): void
+    public function ヘッダ指定がなくても未認証はリダイレクトされず401のエラー応答になる(): void
     {
         $this->post('/api/v1/books', [])
             ->assertUnauthorized()
@@ -114,7 +114,7 @@ class BookApiAuthTest extends TestCase
     // ---- 実際のトークン ----
 
     /** @test */
-    public function 発行したトークンを_bearerで送ると書き込み系を利用できる(): void
+    public function 発行したトークンを認証ヘッダで送ると書き込み系を利用できる(): void
     {
         $user = User::factory()->create();
         $token = $user->createToken('test')->plainTextToken;
@@ -195,7 +195,7 @@ class BookApiAuthTest extends TestCase
     }
 
     /** @test */
-    public function 画面側の権限エラーは従来どおりで_ap_iの形式にならない(): void
+    public function 画面側の権限エラーは従来どおりで公開用の形式にならない(): void
     {
         $book = Book::factory()->create();
 

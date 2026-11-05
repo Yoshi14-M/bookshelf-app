@@ -8,6 +8,7 @@ use App\Http\Requests\StoreBookRequest;
 use App\Http\Requests\UpdateBookRequest;
 use App\Models\Book;
 use App\Models\Genre;
+use App\Services\BookService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -44,10 +45,9 @@ class BookController extends Controller
     /**
      * 書籍を登録する（登録者はログインユーザー）。
      */
-    public function store(StoreBookRequest $request): RedirectResponse
+    public function store(StoreBookRequest $request, BookService $books): RedirectResponse
     {
-        $book = $request->user()->books()->create($request->safe()->except('genres'));
-        $book->genres()->sync($request->validated('genres'));
+        $book = $books->create($request->user(), $request->safe()->except('genres'), $request->validated('genres'));
 
         return redirect()->route('books.show', $book)->with('success', '書籍を登録しました。');
     }
@@ -83,24 +83,23 @@ class BookController extends Controller
     /**
      * 書籍を更新する（登録者のみ。登録者自体は変更しない）。
      */
-    public function update(UpdateBookRequest $request, Book $book): RedirectResponse
+    public function update(UpdateBookRequest $request, Book $book, BookService $books): RedirectResponse
     {
         $this->authorize('update', $book);
 
-        $book->update($request->safe()->except('genres'));
-        $book->genres()->sync($request->validated('genres'));
+        $books->update($book, $request->safe()->except('genres'), $request->validated('genres'));
 
         return redirect()->route('books.show', $book)->with('success', '書籍情報を更新しました。');
     }
 
     /**
-     * 書籍を削除する（登録者のみ。関連データは FK の CASCADE で削除される）。
+     * 書籍を削除する（登録者のみ。レビュー・お気に入り・読書計画などの関連データも同時に削除する）。
      */
-    public function destroy(Book $book): RedirectResponse
+    public function destroy(Book $book, BookService $books): RedirectResponse
     {
         $this->authorize('delete', $book);
 
-        $book->delete();
+        $books->delete($book);
 
         return redirect()->route('books.index')->with('success', '書籍を削除しました。');
     }

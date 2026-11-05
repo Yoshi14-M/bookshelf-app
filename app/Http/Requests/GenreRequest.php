@@ -9,6 +9,9 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 abstract class GenreRequest extends FormRequest
 {
+    /**
+     * 認可はコントローラーで `GenrePolicy` により行う。
+     */
     public function authorize(): bool
     {
         return true;

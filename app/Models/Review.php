@@ -21,16 +21,31 @@ class Review extends Model
         'comment',
     ];
 
+    /**
+     * レビューの投稿者。
+     *
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * レビューの対象の書籍。
+     *
+     * @return BelongsTo<Book, $this>
+     */
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
     }
 
+    /**
+     * このレビューにいいねしたユーザー（中間テーブル `review_likes`）。
+     *
+     * @return BelongsToMany<User>
+     */
     public function likedByUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'review_likes');

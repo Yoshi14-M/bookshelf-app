@@ -14,6 +14,9 @@ abstract class BookRequest extends FormRequest
 {
     use HasBookRules;
 
+    /**
+     * 登録は認証済み（`auth:sanctum`）なら誰でもできる。更新の認可は `UpdateBookRequest` と `BookPolicy` で行う。
+     */
     public function authorize(): bool
     {
         return true;

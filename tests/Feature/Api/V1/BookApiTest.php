@@ -332,7 +332,7 @@ class BookApiTest extends TestCase
     }
 
     /** @test */
-    public function 登録者_i_dを送っても無視されトークンの所有者が登録者になる(): void
+    public function 登録者の指定を送っても無視されトークンの所有者が登録者になる(): void
     {
         $user = $this->signIn();
         $other = User::factory()->create();
@@ -468,7 +468,7 @@ class BookApiTest extends TestCase
     }
 
     /** @test */
-    public function 更新で登録者_i_dを送っても登録者は変更されない(): void
+    public function 更新で登録者の指定を送っても登録者は変更されない(): void
     {
         $owner = $this->signIn();
         $book = Book::factory()->for($owner)->create();
